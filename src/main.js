@@ -3,14 +3,14 @@
  * Orchestrates all modules and handles global state
  */
 
-import './style.css';
 import { AudioEngine } from './modules/audioEngine.js';
 import { BPMDetector } from './modules/bpmDetector.js';
 import { SubtitleManager } from './modules/subtitleManager.js';
 import { SubtitleUI } from './modules/subtitleUI.js';
 import { FileManager } from './modules/fileManager.js';
 import { SpeechDetector } from './modules/speechDetector.js';
-import { msToDisplay } from './modules/srtParser.js';
+import { SectionManager, SECTION_TYPES } from './modules/sectionManager.js';
+import { msToDisplay, serializeSRTWithSections } from './modules/srtParser.js';
 
 // ─── Instances ───
 const audioEngine = new AudioEngine();
@@ -19,6 +19,10 @@ const subtitleManager = new SubtitleManager();
 const subtitleUI = new SubtitleUI(subtitleManager, audioEngine);
 const fileManager = new FileManager();
 const speechDetector = new SpeechDetector();
+const sectionManager = new SectionManager();
+
+// Link section manager to subtitle UI
+subtitleUI.sectionManager = sectionManager;
 
 // ─── DOM Elements ───
 const welcomeScreen = document.getElementById('welcome-screen');
@@ -33,6 +37,10 @@ const pauseIcon = document.getElementById('pause-icon');
 const subCountEl = document.getElementById('sub-count');
 const dropZone = document.getElementById('drop-zone');
 
+// Track copy source
+let _copySectionId = null;
+let _magneticSnap = true;
+
 // ─── Initialization ───
 function init() {
   audioEngine.init();
@@ -44,12 +52,20 @@ function init() {
   setupDragDrop();
   setupModals();
   setupAudioCallbacks();
+  setupQuickInput();
+  setupSections();
 
   // Update subtitle count on changes
   subtitleManager.onChange = (subs) => {
     subtitleUI.renderList();
     subtitleUI.syncRegions();
     subCountEl.textContent = `${subs.length} subtítulo${subs.length !== 1 ? 's' : ''}`;
+  };
+
+  // Update section visuals on changes
+  sectionManager.onChange = () => {
+    renderSectionChips();
+    syncSectionMarkers();
   };
 }
 
@@ -58,14 +74,11 @@ function setupFileManager() {
   fileManager.onAudioLoaded = async (file) => {
     showToast(`Cargando: ${file.name}...`, 'info');
     fileNameDisplay.textContent = file.name;
-
     try {
       const audioBuffer = await audioEngine.loadFile(file);
       welcomeScreen.style.display = 'none';
       waveformArea.style.display = 'block';
       showToast('Audio cargado correctamente', 'success');
-
-      // Start BPM analysis
       analyzeBPM(audioBuffer);
     } catch (err) {
       showToast(`Error al cargar audio: ${err.message}`, 'error');
@@ -77,12 +90,11 @@ function setupFileManager() {
     showToast(`SRT importado: ${subtitles.length} subtítulos`, 'success');
   };
 
-  // Header buttons
   document.getElementById('btn-import-audio').addEventListener('click', () => fileManager.openAudioPicker());
   document.getElementById('btn-import-srt').addEventListener('click', () => fileManager.openSRTPicker());
   document.getElementById('btn-export-srt').addEventListener('click', exportSRT);
   document.getElementById('btn-save-project').addEventListener('click', () => {
-    fileManager.saveProject(subtitleManager.getAll(), { bpm: bpmDetector.bpm });
+    fileManager.saveProject(subtitleManager.getAll(), { bpm: bpmDetector.bpm, sections: sectionManager.getAll() });
     showToast('Proyecto guardado', 'success');
   });
   document.getElementById('btn-load-project').addEventListener('click', () => fileManager.openProjectPicker());
@@ -94,24 +106,25 @@ function setupAudioCallbacks() {
   audioEngine.onReady = (duration) => {
     totalTimeEl.textContent = msToDisplay(duration * 1000);
   };
-
   audioEngine.onTimeUpdate = (currentTime) => {
     currentTimeEl.textContent = msToDisplay(currentTime * 1000);
     subtitleUI.updatePreview(currentTime);
   };
-
   audioEngine.onRegionUpdate = (region) => {
-    // When user drags/resizes a region, update the subtitle
+    if (region.id.startsWith('section-')) return;
     const idStr = region.id.replace('sub-', '');
     const id = parseInt(idStr);
     if (!isNaN(id)) {
-      subtitleManager.update(id, {
-        startTime: region.start * 1000,
-        endTime: region.end * 1000
-      });
+      let startMs = region.start * 1000;
+      let endMs = region.end * 1000;
+      if (_magneticSnap) {
+        const result = magneticAdjust(id, startMs, endMs);
+        startMs = result.startTime;
+        endMs = result.endTime;
+      }
+      subtitleManager.update(id, { startTime: startMs, endTime: endMs });
     }
   };
-
   audioEngine.onRegionClick = (region) => {
     const idStr = region.id.replace('sub-', '');
     const id = parseInt(idStr);
@@ -124,34 +137,34 @@ function setupAudioCallbacks() {
 
 // ─── Transport Controls ───
 function setupTransportControls() {
-  document.getElementById('btn-play').addEventListener('click', () => {
-    audioEngine.playPause();
-    updatePlayButton();
-  });
+  document.getElementById('btn-play').addEventListener('click', () => { audioEngine.playPause(); updatePlayButton(); });
+  document.getElementById('btn-stop').addEventListener('click', () => { audioEngine.stop(); updatePlayButton(); });
+  document.getElementById('speed-select').addEventListener('change', (e) => { audioEngine.setPlaybackRate(parseFloat(e.target.value)); });
+  document.getElementById('zoom-slider').addEventListener('input', (e) => { audioEngine.setZoom(parseInt(e.target.value)); });
+  document.getElementById('volume-slider').addEventListener('input', (e) => { audioEngine.setVolume(parseFloat(e.target.value)); });
 
-  document.getElementById('btn-stop').addEventListener('click', () => {
-    audioEngine.stop();
-    updatePlayButton();
-  });
-
-  document.getElementById('speed-select').addEventListener('change', (e) => {
-    audioEngine.setPlaybackRate(parseFloat(e.target.value));
-  });
-
-  document.getElementById('zoom-slider').addEventListener('input', (e) => {
-    audioEngine.setZoom(parseInt(e.target.value));
-  });
-
-  document.getElementById('volume-slider').addEventListener('input', (e) => {
-    audioEngine.setVolume(parseFloat(e.target.value));
-  });
-
-  // Poll play state for icon update
-  setInterval(() => {
-    if (audioEngine.isReady) {
-      updatePlayButton();
+  // Mouse wheel interaction on waveform
+  const waveformEl = document.getElementById('waveform');
+  const zoomSlider = document.getElementById('zoom-slider');
+  waveformEl.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (e.ctrlKey) {
+      // Ctrl + Scroll: Desplazamiento horizontal (panning)
+      if (audioEngine.wavesurfer) {
+        const wrapper = audioEngine.wavesurfer.getWrapper();
+        wrapper.scrollLeft += e.deltaY;
+      }
+    } else {
+      // Normal Scroll: Zoom
+      const step = e.deltaY < 0 ? 20 : -20; // scroll up = zoom in
+      const current = parseInt(zoomSlider.value);
+      const newVal = Math.max(10, Math.min(500, current + step));
+      zoomSlider.value = newVal;
+      audioEngine.setZoom(newVal);
     }
-  }, 200);
+  }, { passive: false });
+
+  setInterval(() => { if (audioEngine.isReady) updatePlayButton(); }, 200);
 }
 
 function updatePlayButton() {
@@ -163,57 +176,221 @@ function updatePlayButton() {
 // ─── Toolbar Setup ───
 function setupToolbar() {
   document.getElementById('btn-add-sub').addEventListener('click', () => addSubtitleAtCurrentTime());
-
   document.getElementById('btn-fix-overlaps').addEventListener('click', () => {
     const fixed = subtitleManager.fixOverlaps();
-    if (fixed > 0) {
-      showToast(`${fixed} solapamiento${fixed > 1 ? 's' : ''} corregido${fixed > 1 ? 's' : ''}`, 'success');
-    } else {
-      showToast('No se encontraron solapamientos', 'info');
-    }
+    showToast(fixed > 0 ? `${fixed} solapamiento${fixed > 1 ? 's' : ''} corregido${fixed > 1 ? 's' : ''}` : 'No se encontraron solapamientos', fixed > 0 ? 'success' : 'info');
   });
-
-  document.getElementById('btn-auto-detect').addEventListener('click', () => {
-    openSpeechModal();
-  });
-
+  document.getElementById('btn-auto-detect').addEventListener('click', () => openSpeechModal());
   document.getElementById('btn-snap-bpm').addEventListener('click', () => {
-    if (!bpmDetector.bpm) {
-      showToast('Primero carga un audio para detectar BPM', 'warning');
-      return;
-    }
+    if (!bpmDetector.bpm) { showToast('Primero carga un audio para detectar BPM', 'warning'); return; }
     snapSubtitlesToBPM();
   });
-
+  // Magnetic snap toggle
+  const magBtn = document.getElementById('btn-magnetic-snap');
+  magBtn.addEventListener('click', () => {
+    _magneticSnap = !_magneticSnap;
+    magBtn.classList.toggle('active', _magneticSnap);
+    showToast(_magneticSnap ? 'Snap magnético activado' : 'Snap magnético desactivado', 'info');
+  });
   document.getElementById('btn-undo').addEventListener('click', () => {
-    if (subtitleManager.undo()) {
-      showToast('Acción deshecha', 'info');
+    if (subtitleManager.undo()) showToast('Acción deshecha', 'info');
+  });
+}
+
+// ─── Quick Lyrics Input ───
+function setupQuickInput() {
+  const input = document.getElementById('quick-input-field');
+  const durationSelect = document.getElementById('quick-input-duration');
+
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation(); // Don't trigger global shortcuts
+    if (e.key === 'Enter' && input.value.trim()) {
+      e.preventDefault();
+      if (!audioEngine.isReady) { showToast('Carga un audio primero', 'warning'); return; }
+      const dur = parseInt(durationSelect.value);
+      const currentMs = audioEngine.getCurrentTime() * 1000;
+      const sub = subtitleManager.add(currentMs, currentMs + dur, input.value.trim());
+      subtitleUI.select(sub.id);
+      input.value = '';
+      showToast('Subtítulo añadido', 'success');
     }
   });
 }
 
-// ─── Add Subtitle ───
-function addSubtitleAtCurrentTime() {
-  if (!audioEngine.isReady) {
-    showToast('Carga un audio primero', 'warning');
+// ─── Sections ───
+function setupSections() {
+  document.getElementById('btn-add-section').addEventListener('click', openSectionModal);
+
+  // Section type change — show custom name field
+  document.getElementById('section-type').addEventListener('change', (e) => {
+    document.getElementById('section-custom-name-group').style.display = e.target.value === 'CUSTOM' ? 'block' : 'none';
+  });
+
+  // Section modal buttons
+  document.getElementById('section-modal-close').addEventListener('click', closeSectionModal);
+  document.getElementById('section-cancel').addEventListener('click', closeSectionModal);
+  document.querySelector('#section-modal .modal-backdrop').addEventListener('click', closeSectionModal);
+  document.getElementById('section-set-start').addEventListener('click', () => {
+    document.getElementById('section-start').value = msToDisplay(audioEngine.getCurrentTime() * 1000);
+  });
+  document.getElementById('section-set-end').addEventListener('click', () => {
+    document.getElementById('section-end').value = msToDisplay(audioEngine.getCurrentTime() * 1000);
+  });
+  document.getElementById('section-save').addEventListener('click', saveSection);
+
+  // Copy section modal
+  document.getElementById('copy-section-modal-close').addEventListener('click', closeCopySectionModal);
+  document.getElementById('copy-section-cancel').addEventListener('click', closeCopySectionModal);
+  document.querySelector('#copy-section-modal .modal-backdrop').addEventListener('click', closeCopySectionModal);
+  document.getElementById('copy-set-target').addEventListener('click', () => {
+    document.getElementById('copy-target-time').value = msToDisplay(audioEngine.getCurrentTime() * 1000);
+  });
+  document.getElementById('copy-section-confirm').addEventListener('click', confirmCopySection);
+}
+
+function openSectionModal() {
+  document.getElementById('section-start').value = msToDisplay(audioEngine.getCurrentTime() * 1000);
+  document.getElementById('section-end').value = '';
+  document.getElementById('section-modal').style.display = 'flex';
+}
+
+function closeSectionModal() {
+  document.getElementById('section-modal').style.display = 'none';
+}
+
+function saveSection() {
+  const type = document.getElementById('section-type').value;
+  const customName = document.getElementById('section-custom-name').value.trim();
+  const startStr = document.getElementById('section-start').value;
+  const endStr = document.getElementById('section-end').value;
+  const startMs = parseDisplayTime(startStr);
+  const endMs = parseDisplayTime(endStr);
+  if (startMs === null || endMs === null || endMs <= startMs) {
+    showToast('Verifica los tiempos de inicio y fin', 'warning');
     return;
   }
+  sectionManager.add(type, startMs, endMs, type === 'CUSTOM' ? customName : '');
+  closeSectionModal();
+  showToast(`Sección "${type}" añadida`, 'success');
+}
+
+function renderSectionChips() {
+  const container = document.getElementById('sections-chips');
+  const sections = sectionManager.getAll();
+  if (sections.length === 0) {
+    container.innerHTML = '<span class="sections-empty">Sin secciones</span>';
+    return;
+  }
+  container.innerHTML = sections.map(s => `
+    <div class="section-chip" data-id="${s.id}" style="--chip-color: ${s.color}" title="${msToDisplay(s.startTime)} → ${msToDisplay(s.endTime)}">
+      <span class="section-chip-name">${s.name}</span>
+      <span class="section-chip-time">${msToDisplay(s.startTime)}</span>
+      <button class="section-chip-copy" data-id="${s.id}" title="Copiar sección">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      </button>
+      <button class="section-chip-delete" data-id="${s.id}" title="Eliminar sección">✕</button>
+    </div>
+  `).join('');
+
+  // Chip click -> seek
+  container.querySelectorAll('.section-chip').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.section-chip-copy') || e.target.closest('.section-chip-delete')) return;
+      const id = parseInt(el.dataset.id);
+      const sec = sectionManager.get(id);
+      if (sec) audioEngine.seekTo(sec.startTime / 1000);
+    });
+  });
+
+  // Copy button
+  container.querySelectorAll('.section-chip-copy').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.id);
+      openCopySectionModal(id);
+    });
+  });
+
+  // Delete button
+  container.querySelectorAll('.section-chip-delete').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.id);
+      sectionManager.remove(id);
+      showToast('Sección eliminada', 'info');
+    });
+  });
+}
+
+function syncSectionMarkers() {
+  audioEngine.clearSectionMarkers();
+  for (const sec of sectionManager.getAll()) {
+    audioEngine.addSectionMarker(sec.id, sec.startTime / 1000, sec.endTime / 1000, sec.name, sec.color);
+  }
+}
+
+function openCopySectionModal(sectionId) {
+  _copySectionId = sectionId;
+  const sec = sectionManager.get(sectionId);
+  if (!sec) return;
+  document.getElementById('copy-section-source').textContent = `${sec.name} (${msToDisplay(sec.startTime)} → ${msToDisplay(sec.endTime)})`;
+  document.getElementById('copy-target-time').value = msToDisplay(audioEngine.getCurrentTime() * 1000);
+  document.getElementById('copy-section-modal').style.display = 'flex';
+}
+
+function closeCopySectionModal() {
+  document.getElementById('copy-section-modal').style.display = 'none';
+  _copySectionId = null;
+}
+
+function confirmCopySection() {
+  if (!_copySectionId) return;
+  const targetMs = parseDisplayTime(document.getElementById('copy-target-time').value);
+  if (targetMs === null) { showToast('Tiempo de destino inválido', 'warning'); return; }
+  const newSubs = sectionManager.copySectionSubtitles(_copySectionId, targetMs, subtitleManager);
+  closeCopySectionModal();
+  showToast(`Sección copiada: ${newSubs.length} subtítulo${newSubs.length !== 1 ? 's' : ''}`, 'success');
+}
+
+// ─── Magnetic Snap (prevent overlaps) ───
+function magneticAdjust(id, startMs, endMs) {
+  const GAP = 10; // 10ms gap between subtitles
+  const subs = subtitleManager.getAll();
+  const idx = subs.findIndex(s => s.id === id);
+  const prev = idx > 0 ? subs[idx - 1] : null;
+  const next = idx < subs.length - 1 ? subs[idx + 1] : null;
+
+  // Prevent overlapping with previous subtitle
+  if (prev && startMs < prev.endTime) {
+    const shift = prev.endTime + GAP - startMs;
+    startMs = prev.endTime + GAP;
+    endMs += shift;
+  }
+
+  // Prevent overlapping with next subtitle
+  if (next && endMs > next.startTime) {
+    endMs = next.startTime - GAP;
+  }
+
+  // Ensure minimum duration
+  if (endMs <= startMs) endMs = startMs + 100;
+
+  return { startTime: startMs, endTime: endMs };
+}
+
+// ─── Add Subtitle ───
+function addSubtitleAtCurrentTime() {
+  if (!audioEngine.isReady) { showToast('Carga un audio primero', 'warning'); return; }
   const currentMs = audioEngine.getCurrentTime() * 1000;
   const sub = subtitleManager.add(currentMs, currentMs + 2000, '');
   subtitleUI.select(sub.id);
-  
-  // Focus the text area
-  setTimeout(() => {
-    const textArea = document.getElementById('edit-text');
-    if (textArea) textArea.focus();
-  }, 50);
+  setTimeout(() => { const ta = document.getElementById('edit-text'); if (ta) ta.focus(); }, 50);
 }
 
 // ─── BPM Analysis ───
 async function analyzeBPM(audioBuffer) {
   bpmValueEl.textContent = '...';
   bpmConfidenceEl.textContent = 'Analizando';
-  
   try {
     const result = await bpmDetector.analyze(audioBuffer);
     if (result.bpm > 0) {
@@ -228,7 +405,6 @@ async function analyzeBPM(audioBuffer) {
   } catch (err) {
     bpmValueEl.textContent = '—';
     bpmConfidenceEl.textContent = 'Error';
-    console.error('BPM analysis error:', err);
   }
 }
 
@@ -236,73 +412,53 @@ async function analyzeBPM(audioBuffer) {
 function snapSubtitlesToBPM() {
   const subs = subtitleManager.getAll();
   if (subs.length === 0) return;
-
   let snapped = 0;
   for (const sub of subs) {
-    const nearestStart = bpmDetector.getNearestBeat(sub.startTime / 1000) * 1000;
-    const nearestEnd = bpmDetector.getNearestBeat(sub.endTime / 1000) * 1000;
-    if (nearestStart !== sub.startTime || nearestEnd !== sub.endTime) {
-      subtitleManager.update(sub.id, {
-        startTime: nearestStart,
-        endTime: nearestEnd > nearestStart ? nearestEnd : nearestStart + 1000
-      });
+    const ns = bpmDetector.getNearestBeat(sub.startTime / 1000) * 1000;
+    const ne = bpmDetector.getNearestBeat(sub.endTime / 1000) * 1000;
+    if (ns !== sub.startTime || ne !== sub.endTime) {
+      subtitleManager.update(sub.id, { startTime: ns, endTime: ne > ns ? ne : ns + 1000 });
       snapped++;
     }
   }
-
   showToast(`${snapped} subtítulo${snapped !== 1 ? 's' : ''} alineado${snapped !== 1 ? 's' : ''} al BPM`, 'success');
 }
 
-// ─── Export SRT ───
+// ─── Export SRT (with sections) ───
 function exportSRT() {
   const subs = subtitleManager.getAll();
-  if (subs.length === 0) {
-    showToast('No hay subtítulos para exportar', 'warning');
-    return;
+  if (subs.length === 0) { showToast('No hay subtítulos para exportar', 'warning'); return; }
+  const sections = sectionManager.getAll();
+  // Use section-aware serializer if there are sections
+  if (sections.length > 0) {
+    const srtContent = serializeSRTWithSections(subs, sections);
+    const blob = new Blob([srtContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${fileManager.currentFileName || 'subtitles'}.srt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } else {
+    fileManager.exportSRT(subs);
   }
-  fileManager.exportSRT(subs);
   showToast('SRT exportado correctamente', 'success');
 }
 
 // ─── Drag & Drop ───
 function setupDragDrop() {
   let dragCounter = 0;
-
-  document.addEventListener('dragenter', (e) => {
-    e.preventDefault();
-    dragCounter++;
-    dropZone.classList.add('visible');
-    document.body.classList.add('drag-over');
-  });
-
-  document.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    dragCounter--;
-    if (dragCounter <= 0) {
-      dragCounter = 0;
-      dropZone.classList.remove('visible');
-      document.body.classList.remove('drag-over');
-    }
-  });
-
-  document.addEventListener('dragover', (e) => {
-    e.preventDefault();
-  });
-
+  document.addEventListener('dragenter', (e) => { e.preventDefault(); dragCounter++; dropZone.classList.add('visible'); document.body.classList.add('drag-over'); });
+  document.addEventListener('dragleave', (e) => { e.preventDefault(); dragCounter--; if (dragCounter <= 0) { dragCounter = 0; dropZone.classList.remove('visible'); document.body.classList.remove('drag-over'); } });
+  document.addEventListener('dragover', (e) => e.preventDefault());
   document.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dragCounter = 0;
-    dropZone.classList.remove('visible');
-    document.body.classList.remove('drag-over');
-
-    const files = Array.from(e.dataTransfer.files);
-    for (const file of files) {
+    e.preventDefault(); dragCounter = 0; dropZone.classList.remove('visible'); document.body.classList.remove('drag-over');
+    for (const file of Array.from(e.dataTransfer.files)) {
       const ext = file.name.split('.').pop().toLowerCase();
-      if (['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'webm'].includes(ext)) {
-        fileManager.onAudioLoaded(file);
-      } else if (['srt', 'txt'].includes(ext)) {
-        fileManager._handleSRTFile(file);
-      }
+      if (['mp3','wav','ogg','m4a','flac','aac','webm'].includes(ext)) fileManager.onAudioLoaded(file);
+      else if (['srt','txt'].includes(ext)) fileManager._handleSRTFile(file);
     }
   });
 }
@@ -312,94 +468,34 @@ function setupKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
     const active = document.activeElement;
     const isEditing = active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && active.type === 'text'));
-
-    // Ctrl+S — Export SRT
-    if (e.ctrlKey && e.key === 's') {
-      e.preventDefault();
-      exportSRT();
-      return;
-    }
-
-    // Ctrl+Z — Undo
-    if (e.ctrlKey && e.key === 'z') {
-      e.preventDefault();
-      if (subtitleManager.undo()) {
-        showToast('Acción deshecha', 'info');
-      }
-      return;
-    }
-
-    // Don't intercept shortcuts when typing in text fields
+    if (e.ctrlKey && e.key === 's') { e.preventDefault(); exportSRT(); return; }
+    if (e.ctrlKey && e.key === 'z') { e.preventDefault(); if (subtitleManager.undo()) showToast('Acción deshecha', 'info'); return; }
     if (isEditing) return;
-
     switch (e.key) {
-      case ' ':
-        e.preventDefault();
-        audioEngine.playPause();
-        updatePlayButton();
+      case ' ': e.preventDefault(); audioEngine.playPause(); updatePlayButton(); break;
+      case 'Enter': e.preventDefault(); addSubtitleAtCurrentTime(); break;
+      case 'Delete': case 'Backspace':
+        if (subtitleUI.selectedId) { e.preventDefault(); subtitleManager.remove(subtitleUI.selectedId); audioEngine.removeRegion(subtitleUI.selectedId); subtitleUI.selectedId = null; subtitleUI.renderEditor(null); }
         break;
-
-      case 'Enter':
-        e.preventDefault();
-        addSubtitleAtCurrentTime();
-        break;
-
-      case 'Delete':
-      case 'Backspace':
-        if (subtitleUI.selectedId) {
-          e.preventDefault();
-          subtitleManager.remove(subtitleUI.selectedId);
-          audioEngine.removeRegion(subtitleUI.selectedId);
-          subtitleUI.selectedId = null;
-          subtitleUI.renderEditor(null);
-        }
-        break;
-
-      case 'ArrowLeft':
-        e.preventDefault();
-        audioEngine.seekRelative(e.shiftKey ? -0.1 : -1);
-        break;
-
-      case 'ArrowRight':
-        e.preventDefault();
-        audioEngine.seekRelative(e.shiftKey ? 0.1 : 1);
-        break;
-
+      case 'ArrowLeft': e.preventDefault(); audioEngine.seekRelative(e.shiftKey ? -0.01 : -0.1); break;
+      case 'ArrowRight': e.preventDefault(); audioEngine.seekRelative(e.shiftKey ? 0.01 : 0.1); break;
       case 'Tab':
         e.preventDefault();
         if (subtitleUI.selectedId) {
-          const next = e.shiftKey
-            ? subtitleManager.getPrev(subtitleUI.selectedId)
-            : subtitleManager.getNext(subtitleUI.selectedId);
-          if (next) {
-            subtitleUI.select(next.id);
-            audioEngine.seekTo(next.startTime / 1000);
-          }
-        } else if (subtitleManager.count > 0) {
-          const first = subtitleManager.getAll()[0];
-          subtitleUI.select(first.id);
-        }
+          const next = e.shiftKey ? subtitleManager.getPrev(subtitleUI.selectedId) : subtitleManager.getNext(subtitleUI.selectedId);
+          if (next) { subtitleUI.select(next.id); audioEngine.seekTo(next.startTime / 1000); }
+        } else if (subtitleManager.count > 0) { subtitleUI.select(subtitleManager.getAll()[0].id); }
         break;
-
-      case '?':
-        toggleShortcutsModal();
-        break;
+      case '?': toggleShortcutsModal(); break;
     }
   });
 }
 
 // ─── Speech Modal ───
 function setupModals() {
-  // Shortcuts modal
   document.getElementById('shortcuts-badge').addEventListener('click', toggleShortcutsModal);
-  document.getElementById('shortcuts-modal-close').addEventListener('click', () => {
-    document.getElementById('shortcuts-modal').style.display = 'none';
-  });
-  document.querySelector('#shortcuts-modal .modal-backdrop').addEventListener('click', () => {
-    document.getElementById('shortcuts-modal').style.display = 'none';
-  });
-
-  // Speech modal
+  document.getElementById('shortcuts-modal-close').addEventListener('click', () => { document.getElementById('shortcuts-modal').style.display = 'none'; });
+  document.querySelector('#shortcuts-modal .modal-backdrop').addEventListener('click', () => { document.getElementById('shortcuts-modal').style.display = 'none'; });
   document.getElementById('speech-modal-close').addEventListener('click', closeSpeechModal);
   document.getElementById('speech-cancel').addEventListener('click', closeSpeechModal);
   document.querySelector('#speech-modal .modal-backdrop').addEventListener('click', closeSpeechModal);
@@ -412,10 +508,7 @@ function toggleShortcutsModal() {
 }
 
 function openSpeechModal() {
-  if (!speechDetector.checkSupport()) {
-    showToast('Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.', 'error');
-    return;
-  }
+  if (!speechDetector.checkSupport()) { showToast('Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.', 'error'); return; }
   document.getElementById('speech-modal').style.display = 'flex';
 }
 
@@ -428,32 +521,23 @@ function closeSpeechModal() {
 function toggleSpeechRecognition() {
   const lang = document.getElementById('speech-lang').value;
   speechDetector.setLanguage(lang);
-
   if (speechDetector.isListening) {
     const results = speechDetector.stop();
     updateSpeechUI(false);
-    
-    // Create subtitles from results
     if (results.length > 0) {
       const currentMs = audioEngine.getCurrentTime() * 1000;
       let offset = 0;
-      for (const result of results) {
-        subtitleManager.add(currentMs + offset, currentMs + offset + 2000, result.text);
-        offset += 2500;
-      }
-      showToast(`${results.length} subtítulo${results.length > 1 ? 's' : ''} creado${results.length > 1 ? 's' : ''} desde voz`, 'success');
+      for (const r of results) { subtitleManager.add(currentMs + offset, currentMs + offset + 2000, r.text); offset += 2500; }
+      showToast(`${results.length} subtítulo${results.length > 1 ? 's' : ''} creado${results.length > 1 ? 's' : ''}`, 'success');
     }
   } else {
-    // Start listening and playing
     speechDetector.onResult = (results) => {
-      const resultsEl = document.getElementById('speech-results');
-      const final = results.filter(r => r.isFinal);
-      for (const r of final) {
-        resultsEl.innerHTML += `<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);">"${r.text}" <span style="color:var(--text-muted)">(${Math.round(r.confidence * 100)}%)</span></div>`;
+      const el = document.getElementById('speech-results');
+      for (const r of results.filter(r => r.isFinal)) {
+        el.innerHTML += `<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);">"${r.text}" <span style="color:var(--text-muted)">(${Math.round(r.confidence*100)}%)</span></div>`;
       }
-      resultsEl.scrollTop = resultsEl.scrollHeight;
+      el.scrollTop = el.scrollHeight;
     };
-
     speechDetector.start();
     audioEngine.play();
     updatePlayButton();
@@ -464,22 +548,23 @@ function toggleSpeechRecognition() {
 function updateSpeechUI(listening) {
   const statusEl = document.getElementById('speech-status');
   const btnEl = document.getElementById('speech-start');
-  
   if (listening) {
     statusEl.classList.add('listening');
     statusEl.querySelector('span').textContent = 'Escuchando...';
-    btnEl.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
-      Detener
-    `;
+    btnEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg> Detener`;
   } else {
     statusEl.classList.remove('listening');
     statusEl.querySelector('span').textContent = 'Listo para iniciar';
-    btnEl.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>
-      Iniciar Escucha
-    `;
+    btnEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg> Iniciar Escucha`;
   }
+}
+
+// ─── Helpers ───
+function parseDisplayTime(str) {
+  const match = (str || '').trim().match(/(\d+):(\d+)\.(\d+)/);
+  if (!match) return null;
+  const [, m, s, ms] = match;
+  return parseInt(m) * 60000 + parseInt(s) * 1000 + parseInt(ms.padEnd(3, '0').substring(0, 3));
 }
 
 // ─── Toast Notifications ───
@@ -489,11 +574,7 @@ function showToast(message, type = 'info') {
   toast.className = `toast ${type}`;
   toast.textContent = message;
   container.appendChild(toast);
-
-  setTimeout(() => {
-    toast.classList.add('hiding');
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
+  setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 300); }, 3000);
 }
 
 // ─── Start ───

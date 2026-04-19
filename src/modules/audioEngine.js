@@ -3,10 +3,10 @@
  * Manages wavesurfer.js instance, plugins, and transport controls
  */
 
-import WaveSurfer from 'wavesurfer.js';
-import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
-import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js';
-import Minimap from 'wavesurfer.js/dist/plugins/minimap.esm.js';
+import WaveSurfer from 'https://esm.sh/wavesurfer.js@7.12.6';
+import RegionsPlugin from 'https://esm.sh/wavesurfer.js@7.12.6/dist/plugins/regions.esm.js';
+import TimelinePlugin from 'https://esm.sh/wavesurfer.js@7.12.6/dist/plugins/timeline.esm.js';
+import Minimap from 'https://esm.sh/wavesurfer.js@7.12.6/dist/plugins/minimap.esm.js';
 
 export class AudioEngine {
   constructor() {
@@ -68,6 +68,39 @@ export class AudioEngine {
     });
 
     this._setupEvents();
+    this._injectScrollbarStyles();
+  }
+
+  /**
+   * Inject scrollbar styles into WaveSurfer's shadow root
+   * (external CSS cannot style scrollbars inside shadow DOM)
+   */
+  _injectScrollbarStyles() {
+    // WaveSurfer renders into a shadow root — we must inject styles directly
+    const waveformEl = document.getElementById('waveform');
+    const shadowRoot = waveformEl?.shadowRoot;
+    if (!shadowRoot) return;
+
+    const style = document.createElement('style');
+    style.textContent = `
+      .scroll::-webkit-scrollbar {
+        height: 8px !important;
+      }
+      .scroll::-webkit-scrollbar-track {
+        background: #080d1a !important;
+        border-top: 1px solid rgba(255,255,255,0.06) !important;
+      }
+      .scroll::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.16) !important;
+        border-radius: 4px !important;
+        border: 2px solid #080d1a !important;
+      }
+      .scroll::-webkit-scrollbar-thumb:hover {
+        background: rgba(6,182,212,0.6) !important;
+        box-shadow: 0 0 8px rgba(6,182,212,0.4) !important;
+      }
+    `;
+    shadowRoot.appendChild(style);
   }
 
   /**
@@ -248,6 +281,46 @@ export class AudioEngine {
           ? 'rgba(6, 182, 212, 0.35)'
           : 'rgba(59, 130, 246, 0.15)',
       });
+    }
+  }
+
+  // --- Section Markers ---
+
+  /**
+   * Add a section marker (visual band with label on the waveform)
+   */
+  addSectionMarker(id, start, end, label, color) {
+    const alpha = '18'; // ~10% opacity hex
+    return this.regions.addRegion({
+      id: `section-${id}`,
+      start,
+      end,
+      content: label,
+      color: color + alpha,
+      drag: false,
+      resize: false,
+    });
+  }
+
+  /**
+   * Remove a section marker
+   */
+  removeSectionMarker(id) {
+    const regionId = `section-${id}`;
+    const allRegions = this.regions.getRegions();
+    const region = allRegions.find(r => r.id === regionId);
+    if (region) region.remove();
+  }
+
+  /**
+   * Clear all section markers (but keep subtitle regions)
+   */
+  clearSectionMarkers() {
+    const allRegions = this.regions.getRegions();
+    for (const region of allRegions) {
+      if (region.id.startsWith('section-')) {
+        region.remove();
+      }
     }
   }
 

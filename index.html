@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2306b6d4' stroke-width='2'><path d='M9 18V5l12-2v13'/><circle cx='6' cy='18' r='3'/><circle cx='18' cy='16' r='3'/></svg>">
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
@@ -117,6 +117,26 @@
           <div id="timeline"></div>
         </div>
         
+        <!-- Quick Lyrics Input -->
+        <div class="quick-input" id="quick-input">
+          <div class="quick-input-inner">
+            <div class="quick-input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </div>
+            <input type="text" id="quick-input-field" placeholder="Escribe la letra y presiona Enter para añadir..." autocomplete="off" />
+            <div class="quick-input-duration">
+              <label>Dur:</label>
+              <select id="quick-input-duration">
+                <option value="1000">1s</option>
+                <option value="2000" selected>2s</option>
+                <option value="3000">3s</option>
+                <option value="4000">4s</option>
+                <option value="5000">5s</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
         <!-- Karaoke Player Bar -->
         <div class="karaoke-bar" id="karaoke-bar">
           <div class="karaoke-track" id="karaoke-track">
@@ -170,8 +190,28 @@
       </div>
     </section>
 
-    <!-- SUBTITLE PANEL SECTION -->
+    <!-- SECTIONS + SUBTITLE PANEL SECTION -->
     <section class="subtitle-section" id="subtitle-section">
+
+      <!-- Sections Bar -->
+      <div class="sections-bar" id="sections-bar">
+        <div class="sections-bar-left">
+          <span class="sections-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Secciones
+          </span>
+          <div class="sections-chips" id="sections-chips">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+        <div class="sections-bar-right">
+          <button class="btn btn-sm btn-add-section" id="btn-add-section" title="Añadir sección">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Sección
+          </button>
+        </div>
+      </div>
+
       <!-- Toolbar -->
       <div class="subtitle-toolbar">
         <div class="toolbar-left">
@@ -191,6 +231,10 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>
             Snap BPM
           </button>
+          <button class="btn btn-sm btn-tool active" id="btn-magnetic-snap" title="Snap magnético: evita solapamientos automáticamente">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6H4z"/><path d="M14 14h6v6h-6z"/><line x1="10" y1="7" x2="14" y2="7"/><line x1="10" y1="17" x2="14" y2="17"/></svg>
+            Magnético
+          </button>
         </div>
         <div class="toolbar-right">
           <button class="btn btn-sm btn-tool" id="btn-undo" title="Deshacer (Ctrl+Z)">
@@ -205,7 +249,9 @@
       <div class="subtitle-panels">
         <div class="panel-list" id="subtitle-list">
           <div class="empty-list">
-            <div class="empty-icon">📝</div>
+            <div class="empty-icon" style="color: var(--text-muted); opacity: 0.5;">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </div>
             <p>No hay subtítulos</p>
             <p class="empty-hint">Carga un audio y presiona <kbd>Enter</kbd> durante la reproducción</p>
           </div>
@@ -223,6 +269,100 @@
   <!-- ===== TOAST NOTIFICATIONS ===== -->
   <div id="toast-container" class="toast-container"></div>
 
+  <!-- ===== ADD SECTION MODAL ===== -->
+  <div id="section-modal" class="modal" style="display:none">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3 id="section-modal-title">Añadir Sección</h3>
+        <button class="btn-icon modal-close" id="section-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="section-type">Tipo de sección</label>
+          <select id="section-type">
+            <option value="INTRO">Intro</option>
+            <option value="VERSO">Verso</option>
+            <option value="PRECORO">Precoro</option>
+            <option value="CORO" selected>Coro</option>
+            <option value="PUENTE">Puente</option>
+            <option value="OUTRO">Outro</option>
+            <option value="ADLIB">Ad-lib</option>
+            <option value="CUSTOM">Custom</option>
+          </select>
+        </div>
+        <div class="form-group" id="section-custom-name-group" style="display:none">
+          <label for="section-custom-name">Nombre personalizado</label>
+          <input type="text" id="section-custom-name" placeholder="Nombre de la sección..." />
+        </div>
+        <div class="form-group">
+          <label>Rango de tiempo</label>
+          <div class="section-time-range">
+            <div class="time-input-group">
+              <label class="time-label-sm">Desde</label>
+              <input type="text" id="section-start" placeholder="00:00.000" />
+              <button class="btn-icon btn-set-time" id="section-set-start" title="Usar tiempo actual">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+              </button>
+            </div>
+            <span class="time-range-arrow">→</span>
+            <div class="time-input-group">
+              <label class="time-label-sm">Hasta</label>
+              <input type="text" id="section-end" placeholder="00:00.000" />
+              <button class="btn-icon btn-set-time" id="section-set-end" title="Usar tiempo actual">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="section-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="section-save">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Añadir
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== COPY SECTION MODAL ===== -->
+  <div id="copy-section-modal" class="modal" style="display:none">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3>Copiar Sección</h3>
+        <button class="btn-icon modal-close" id="copy-section-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-info">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:text-bottom; margin-right:4px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          Copia todos los subtítulos de esta sección a otra posición temporal.
+        </p>
+        <div class="form-group">
+          <label>Sección a copiar</label>
+          <div class="copy-section-source" id="copy-section-source">—</div>
+        </div>
+        <div class="form-group">
+          <label for="copy-target-time">Pegar en el minuto</label>
+          <div class="time-input-group">
+            <input type="text" id="copy-target-time" placeholder="00:00.000" />
+            <button class="btn-icon btn-set-time" id="copy-set-target" title="Usar tiempo actual">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="copy-section-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="copy-section-confirm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copiar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== SPEECH MODAL ===== -->
   <div id="speech-modal" class="modal" style="display:none">
     <div class="modal-backdrop"></div>
@@ -232,7 +372,10 @@
         <button class="btn-icon modal-close" id="speech-modal-close">✕</button>
       </div>
       <div class="modal-body">
-        <p class="modal-info">⚠️ <strong>Experimental:</strong> Usa el micrófono del navegador para capturar el audio. Funciona solo en Chrome/Edge.</p>
+        <p class="modal-info">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" style="display:inline-block; vertical-align:text-bottom; margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          <strong>Experimental:</strong> Usa el micrófono del navegador para capturar el audio. Funciona solo en Chrome/Edge.
+        </p>
         <div class="form-group">
           <label for="speech-lang">Idioma de detección</label>
           <select id="speech-lang">
@@ -275,10 +418,10 @@
           <div class="shortcut-item"><kbd>Espacio</kbd><span>Reproducir / Pausar</span></div>
           <div class="shortcut-item"><kbd>Enter</kbd><span>Añadir subtítulo</span></div>
           <div class="shortcut-item"><kbd>Delete</kbd><span>Eliminar seleccionado</span></div>
-          <div class="shortcut-item"><kbd>←</kbd><span>Retroceder 1s</span></div>
-          <div class="shortcut-item"><kbd>→</kbd><span>Avanzar 1s</span></div>
-          <div class="shortcut-item"><kbd>Shift+←</kbd><span>Retroceder 100ms</span></div>
-          <div class="shortcut-item"><kbd>Shift+→</kbd><span>Avanzar 100ms</span></div>
+          <div class="shortcut-item"><kbd>←</kbd><span>Retroceder 100ms</span></div>
+          <div class="shortcut-item"><kbd>→</kbd><span>Avanzar 100ms</span></div>
+          <div class="shortcut-item"><kbd>Shift+←</kbd><span>Retroceder 10ms</span></div>
+          <div class="shortcut-item"><kbd>Shift+→</kbd><span>Avanzar 10ms</span></div>
           <div class="shortcut-item"><kbd>Tab</kbd><span>Siguiente subtítulo</span></div>
           <div class="shortcut-item"><kbd>Shift+Tab</kbd><span>Subtítulo anterior</span></div>
           <div class="shortcut-item"><kbd>Ctrl+S</kbd><span>Exportar SRT</span></div>

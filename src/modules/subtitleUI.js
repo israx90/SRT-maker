@@ -1,6 +1,7 @@
 /**
  * Subtitle UI
  * Manages the subtitle list panel, editor, and visual sync
+ * Enhanced with inline editing, section labels, and duplicate support
  */
 
 import { msToDisplay } from './srtParser.js';
@@ -9,11 +10,13 @@ export class SubtitleUI {
   constructor(subtitleManager, audioEngine) {
     this.manager = subtitleManager;
     this.engine = audioEngine;
+    this.sectionManager = null; // Set externally
     this.selectedId = null;
     this.listEl = null;
     this.editorEl = null;
     this.previewEl = null;
     this.onSubtitleSelect = null;
+    this._inlineEditingId = null;
   }
 
   /**
@@ -61,18 +64,28 @@ export class SubtitleUI {
       const isOverlap = overlapIndices.has(index);
       const duration = sub.endTime - sub.startTime;
 
+      // Get section info if available
+      let sectionChip = '';
+      if (this.sectionManager) {
+        const section = this.sectionManager.getAtTime(sub.startTime);
+        if (section) {
+          sectionChip = `<span class="sub-section-chip" style="--chip-color: ${section.color}">${section.name}</span>`;
+        }
+      }
+
       return `
         <div class="sub-item ${isActive ? 'active' : ''} ${isOverlap ? 'overlap' : ''}"
              data-id="${sub.id}"
              title="${isOverlap ? '⚠️ Solapamiento detectado' : ''}">
           <div class="sub-item-header">
             <span class="sub-index">#${index + 1}</span>
+            ${sectionChip}
             <span class="sub-times">
               ${msToDisplay(sub.startTime)} → ${msToDisplay(sub.endTime)}
             </span>
             <span class="sub-duration">${(duration / 1000).toFixed(1)}s</span>
           </div>
-          <div class="sub-item-text">${this._escapeHtml(sub.text) || '<em class="empty-text">Texto vacío</em>'}</div>
+          <div class="sub-item-text" data-sub-id="${sub.id}">${this._escapeHtml(sub.text) || '<em class="empty-text">Texto vacío</em>'}</div>
           ${isOverlap ? '<div class="overlap-badge">⚠️ Overlap</div>' : ''}
         </div>
       `;
@@ -80,12 +93,22 @@ export class SubtitleUI {
 
     // Click events
     this.listEl.querySelectorAll('.sub-item').forEach(el => {
-      el.addEventListener('click', () => {
+      el.addEventListener('click', (e) => {
+        // Don't select if we're inline editing
+        if (e.target.closest('.inline-edit-area')) return;
         const id = parseInt(el.dataset.id);
         this.select(id);
       });
-      el.addEventListener('dblclick', () => {
+      el.addEventListener('dblclick', (e) => {
         const id = parseInt(el.dataset.id);
+        const textEl = el.querySelector('.sub-item-text');
+        // If double-clicked on the text area, start inline editing
+        if (e.target === textEl || textEl.contains(e.target)) {
+          e.stopPropagation();
+          this._startInlineEdit(id, textEl);
+          return;
+        }
+        // Otherwise seek to that subtitle
         const sub = this.manager.get(id);
         if (sub) {
           this.engine.seekTo(sub.startTime / 1000);
@@ -100,6 +123,41 @@ export class SubtitleUI {
         activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     }
+  }
+
+  /**
+   * Start inline editing on a subtitle text element
+   */
+  _startInlineEdit(id, textEl) {
+    if (this._inlineEditingId === id) return;
+    this._inlineEditingId = id;
+    const sub = this.manager.get(id);
+    if (!sub) return;
+
+    textEl.innerHTML = `<textarea class="inline-edit-area" rows="2">${this._escapeHtml(sub.text)}</textarea>`;
+    const textarea = textEl.querySelector('.inline-edit-area');
+    textarea.focus();
+    textarea.select();
+
+    const finish = () => {
+      this.manager.update(id, { text: textarea.value });
+      this._inlineEditingId = null;
+    };
+
+    textarea.addEventListener('blur', finish);
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this._inlineEditingId = null;
+        this.renderList();
+      }
+      // Ctrl+Enter to confirm
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        finish();
+      }
+      // Stop propagation so space/enter don't trigger global shortcuts
+      e.stopPropagation();
+    });
   }
 
   /**
@@ -134,15 +192,34 @@ export class SubtitleUI {
     const duration = sub.endTime - sub.startTime;
     const index = this.manager.indexOf(id);
 
+    // Get section info
+    let sectionInfo = '';
+    if (this.sectionManager) {
+      const section = this.sectionManager.getAtTime(sub.startTime);
+      if (section) {
+        sectionInfo = `<span class="editor-section-badge" style="--chip-color: ${section.color}">${section.name}</span>`;
+      }
+    }
+
     this.editorEl.innerHTML = `
       <div class="editor-content">
         <div class="editor-title">
-          <span>Subtítulo #${index + 1}</span>
-          <button class="btn-icon btn-delete-sub" title="Eliminar (Delete)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="3,6 5,6 21,6"/><path d="M19,6V20a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6M8,6V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"/>
-            </svg>
-          </button>
+          <div class="editor-title-left">
+            <span>Subtítulo #${index + 1}</span>
+            ${sectionInfo}
+          </div>
+          <div class="editor-title-actions">
+            <button class="btn-icon btn-duplicate-sub" title="Duplicar subtítulo">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+              </svg>
+            </button>
+            <button class="btn-icon btn-delete-sub" title="Eliminar (Delete)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3,6 5,6 21,6"/><path d="M19,6V20a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6M8,6V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <div class="editor-field">
           <label>Texto</label>
@@ -234,6 +311,12 @@ export class SubtitleUI {
       this.renderEditor(null);
     });
 
+    // Event: Duplicate
+    this.editorEl.querySelector('.btn-duplicate-sub').addEventListener('click', () => {
+      const newSub = this.manager.add(sub.endTime + 100, sub.endTime + (sub.endTime - sub.startTime) + 100, sub.text);
+      this.select(newSub.id);
+    });
+
     // Event: Split
     this.editorEl.querySelector('.btn-split').addEventListener('click', () => {
       const currentMs = this.engine.getCurrentTime() * 1000;
@@ -299,7 +382,14 @@ export class SubtitleUI {
    * Sync regions with wavesurfer
    */
   syncRegions() {
-    this.engine.clearRegions();
+    // Clear only subtitle regions (not section markers)
+    const allRegions = this.engine.regions ? this.engine.regions.getRegions() : [];
+    for (const region of allRegions) {
+      if (region.id.startsWith('sub-')) {
+        region.remove();
+      }
+    }
+
     const subs = this.manager.getAll();
     const overlaps = this.manager.detectOverlaps();
     const overlapIndices = new Set(overlaps.map(o => o.index));

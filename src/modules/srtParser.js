@@ -95,6 +95,41 @@ export function serializeSRT(subtitles) {
 }
 
 /**
+ * Serialize subtitles with section markers into SRT format.
+ * Section labels (e.g. [CORO]) are inserted as standalone subtitle entries
+ * at the beginning of each section, with a 2-second duration.
+ * @param {Array} subtitles - Subtitle objects
+ * @param {Array} sections - Section objects from SectionManager
+ * @returns {string} SRT formatted string
+ */
+export function serializeSRTWithSections(subtitles, sections) {
+  // Create section marker entries
+  const sectionEntries = sections.map(sec => ({
+    startTime: sec.startTime,
+    endTime: Math.min(sec.startTime + 2000, sec.endTime),
+    text: `[${sec.type}]`,
+    _isSection: true,
+  }));
+
+  // Merge and sort all entries
+  const allEntries = [...subtitles, ...sectionEntries]
+    .sort((a, b) => {
+      if (a.startTime !== b.startTime) return a.startTime - b.startTime;
+      // Sections come first at the same timestamp
+      return (a._isSection ? -1 : 0) - (b._isSection ? -1 : 0);
+    });
+
+  return allEntries
+    .map((entry, index) => {
+      const id = index + 1;
+      const start = msToSrtTime(entry.startTime);
+      const end = msToSrtTime(entry.endTime);
+      return `${id}\n${start} --> ${end}\n${entry.text}`;
+    })
+    .join('\n\n') + '\n';
+}
+
+/**
  * Validate SRT content and return issues
  */
 export function validateSRT(subtitles) {
