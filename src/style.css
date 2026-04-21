@@ -167,6 +167,52 @@ body {
   width: 100% !important;
 }
 
+/* --- Language Toggle --- */
+.lang-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+.btn-lang {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: var(--transition-fast);
+}
+.btn-lang:hover {
+  color: var(--accent-gold);
+}
+.btn-lang.active {
+  color: var(--accent-gold);
+  background: rgba(255, 215, 0, 0.1);
+}
+.lang-sep {
+  color: var(--text-muted);
+  font-size: 10px;
+  opacity: 0.5;
+}
+
+/* --- App Title --- */
+.app-logo h1 {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--accent-gold);
+  text-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+}
+
+/* --- Headers --- */
+h1, h2, h3 {
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
 /* --- Header --- */
 #app-header {
   height: var(--header-height);

@@ -11,8 +11,10 @@ import { FileManager } from './modules/fileManager.js';
 import { SpeechDetector } from './modules/speechDetector.js';
 import { SectionManager, SECTION_TYPES } from './modules/sectionManager.js';
 import { msToDisplay, serializeSRTWithSections } from './modules/srtParser.js';
+import { I18n } from './modules/i18n.js';
 
 // ─── Instances ───
+const i18n = new I18n();
 const audioEngine = new AudioEngine();
 const bpmDetector = new BPMDetector();
 const subtitleManager = new SubtitleManager();
@@ -43,6 +45,8 @@ let _magneticSnap = true;
 
 // ─── Initialization ───
 function init() {
+  i18n.apply();
+  updateLangButtons();
   audioEngine.init();
   subtitleUI.init();
   setupFileManager();
@@ -54,6 +58,7 @@ function init() {
   setupAudioCallbacks();
   setupQuickInput();
   setupSections();
+  setupLangToggle();
 
   // Update subtitle count on changes
   subtitleManager.onChange = (subs) => {
@@ -730,6 +735,32 @@ function showToast(message, type = 'info') {
   toast.textContent = message;
   container.appendChild(toast);
   setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 300); }, 3000);
+}
+
+// ─── Language Toggle ───
+function setupLangToggle() {
+  document.getElementById('btn-lang-es').addEventListener('click', () => {
+    i18n.setLanguage('es');
+    updateLangButtons();
+    showToast('Idioma cambiado a Español', 'info');
+  });
+  document.getElementById('btn-lang-en').addEventListener('click', () => {
+    i18n.setLanguage('en');
+    updateLangButtons();
+    showToast('Language changed to English', 'info');
+  });
+}
+
+function updateLangButtons() {
+  const btnEs = document.getElementById('btn-lang-es');
+  const btnEn = document.getElementById('btn-lang-en');
+  if (i18n.lang === 'es') {
+    btnEs.classList.add('active');
+    btnEn.classList.remove('active');
+  } else {
+    btnEs.classList.remove('active');
+    btnEn.classList.add('active');
+  }
 }
 
 // ─── Start ───
