@@ -100,6 +100,17 @@ export class SubtitleManager {
   }
 
   /**
+   * Update a subtitle without triggering onChange (used when syncing from waveform drag)
+   */
+  updateSilent(id, changes) {
+    const sub = this.subtitles.find(s => s.id === id);
+    if (!sub) return null;
+    Object.assign(sub, changes);
+    this._sort();
+    return sub;
+  }
+
+  /**
    * Remove a subtitle
    */
   remove(id) {

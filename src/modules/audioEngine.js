@@ -36,23 +36,23 @@ export class AudioEngine {
       primaryLabelSpacing: 100,
       style: {
         fontSize: '11px',
-        color: '#94a3b8',
+        color: '#ffd700',
       }
     });
 
     this.minimap = Minimap.create({
       height: 30,
-      waveColor: '#1e3a5f',
-      progressColor: '#3b82f6',
+      waveColor: '#222',
+      progressColor: '#ffd700',
       container: '#minimap',
-      cursorColor: '#06b6d4',
+      cursorColor: '#ffff00',
     });
 
     this.wavesurfer = WaveSurfer.create({
       container: '#waveform',
-      waveColor: '#1e3a5f',
-      progressColor: '#3b82f680',
-      cursorColor: '#06b6d4',
+      waveColor: '#333',
+      progressColor: '#ffd70080',
+      cursorColor: '#ffff00',
       cursorWidth: 2,
       barWidth: 2,
       barGap: 1,
@@ -73,31 +73,50 @@ export class AudioEngine {
 
   /**
    * Inject scrollbar styles into WaveSurfer's shadow root
-   * (external CSS cannot style scrollbars inside shadow DOM)
    */
   _injectScrollbarStyles() {
-    // WaveSurfer renders into a shadow root — we must inject styles directly
     const waveformEl = document.getElementById('waveform');
     const shadowRoot = waveformEl?.shadowRoot;
     if (!shadowRoot) return;
 
     const style = document.createElement('style');
     style.textContent = `
-      .scroll::-webkit-scrollbar {
+      *::-webkit-scrollbar {
         height: 8px !important;
+        width: 8px !important;
       }
-      .scroll::-webkit-scrollbar-track {
-        background: #080d1a !important;
-        border-top: 1px solid rgba(255,255,255,0.06) !important;
+      *::-webkit-scrollbar-track {
+        background: #000 !important;
       }
-      .scroll::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,0.16) !important;
+      *::-webkit-scrollbar-thumb {
+        background: rgba(255,215,0,0.4) !important;
         border-radius: 4px !important;
-        border: 2px solid #080d1a !important;
+        border: 2px solid #000 !important;
       }
-      .scroll::-webkit-scrollbar-thumb:hover {
-        background: rgba(6,182,212,0.6) !important;
-        box-shadow: 0 0 8px rgba(6,182,212,0.4) !important;
+      *::-webkit-scrollbar-thumb:hover {
+        background: rgba(255,255,0,0.8) !important;
+      }
+      
+      /* Regions styling */
+      .region {
+        border: 1px solid rgba(255, 215, 0, 0.6) !important;
+        border-radius: 4px !important;
+        overflow: hidden !important;
+        display: flex !important;
+        align-items: center !important;
+        padding: 0 4px !important;
+        box-sizing: border-box !important;
+      }
+      .region-content {
+        color: #fff !important;
+        font-size: 10px !important;
+        font-weight: 500 !important;
+        text-shadow: 0 1px 2px #000 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        pointer-events: none !important;
+        width: 100% !important;
       }
     `;
     shadowRoot.appendChild(style);
@@ -222,7 +241,7 @@ export class AudioEngine {
   /**
    * Add a region (subtitle visualization)
    */
-  addRegion(id, start, end, text, color = 'rgba(59, 130, 246, 0.2)') {
+  addRegion(id, start, end, text, color = 'rgba(255, 215, 0, 0.2)') {
     return this.regions.addRegion({
       id: `sub-${id}`,
       start,
@@ -233,6 +252,14 @@ export class AudioEngine {
       resize: true,
       minLength: 0.1,
     });
+  }
+
+  /**
+   * Get a region by subtitle ID
+   */
+  getRegion(id) {
+    const regionId = `sub-${id}`;
+    return this.regions.getRegions().find(r => r.id === regionId) || null;
   }
 
   /**
@@ -278,8 +305,8 @@ export class AudioEngine {
       const isActive = region.id === `sub-${id}`;
       region.setOptions({
         color: isActive
-          ? 'rgba(6, 182, 212, 0.35)'
-          : 'rgba(59, 130, 246, 0.15)',
+          ? 'rgba(255, 255, 0, 0.4)'
+          : 'rgba(255, 215, 0, 0.15)',
       });
     }
   }
@@ -297,8 +324,8 @@ export class AudioEngine {
       end,
       content: label,
       color: color + alpha,
-      drag: false,
-      resize: false,
+      drag: true,
+      resize: true,
     });
   }
 

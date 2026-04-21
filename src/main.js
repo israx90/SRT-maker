@@ -58,7 +58,7 @@ function init() {
   // Update subtitle count on changes
   subtitleManager.onChange = (subs) => {
     subtitleUI.renderList();
-    subtitleUI.syncRegions();
+    if (audioEngine.isReady) subtitleUI.syncRegions();
     subCountEl.textContent = `${subs.length} subtítulo${subs.length !== 1 ? 's' : ''}`;
   };
 
@@ -66,6 +66,7 @@ function init() {
   sectionManager.onChange = () => {
     renderSectionChips();
     syncSectionMarkers();
+    renderSectionsStrip();
   };
 }
 
@@ -105,13 +106,24 @@ function setupFileManager() {
 function setupAudioCallbacks() {
   audioEngine.onReady = (duration) => {
     totalTimeEl.textContent = msToDisplay(duration * 1000);
+    renderSectionsStrip();
+    audioEngine._injectScrollbarStyles();
+    // Sync any subtitles that were loaded before audio was ready
+    subtitleUI.syncRegions();
+    syncSectionMarkers();
   };
   audioEngine.onTimeUpdate = (currentTime) => {
     currentTimeEl.textContent = msToDisplay(currentTime * 1000);
     subtitleUI.updatePreview(currentTime);
   };
   audioEngine.onRegionUpdate = (region) => {
-    if (region.id.startsWith('section-')) return;
+    if (region.id.startsWith('section-')) {
+      const id = parseInt(region.id.replace('section-', ''));
+      if (!isNaN(id)) {
+        sectionManager.update(id, { startTime: region.start * 1000, endTime: region.end * 1000 });
+      }
+      return;
+    }
     const idStr = region.id.replace('sub-', '');
     const id = parseInt(idStr);
     if (!isNaN(id)) {
@@ -122,7 +134,10 @@ function setupAudioCallbacks() {
         startMs = result.startTime;
         endMs = result.endTime;
       }
-      subtitleManager.update(id, { startTime: startMs, endTime: endMs });
+      // Use silent update to avoid re-triggering syncRegions → region.setOptions → region-updated loop
+      subtitleManager.updateSilent(id, { startTime: startMs, endTime: endMs });
+      // Only update the list panel, not the waveform regions
+      subtitleUI.renderList();
     }
   };
   audioEngine.onRegionClick = (region) => {
@@ -142,6 +157,10 @@ function setupTransportControls() {
   document.getElementById('speed-select').addEventListener('change', (e) => { audioEngine.setPlaybackRate(parseFloat(e.target.value)); });
   document.getElementById('zoom-slider').addEventListener('input', (e) => { audioEngine.setZoom(parseInt(e.target.value)); });
   document.getElementById('volume-slider').addEventListener('input', (e) => { audioEngine.setVolume(parseFloat(e.target.value)); });
+  document.getElementById('btn-full-frame').addEventListener('click', () => {
+    document.body.classList.toggle('full-frame');
+    showToast(document.body.classList.contains('full-frame') ? 'Modo Full Frame activado' : 'Modo estándar activado', 'info');
+  });
 
   // Mouse wheel interaction on waveform
   const waveformEl = document.getElementById('waveform');
@@ -556,6 +575,142 @@ function updateSpeechUI(listening) {
     statusEl.classList.remove('listening');
     statusEl.querySelector('span').textContent = 'Listo para iniciar';
     btnEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg> Iniciar Escucha`;
+  }
+}
+
+// ─── Section Strip (above waveform) ───
+function renderSectionsStrip() {
+  const ruler = document.getElementById('sections-strip-ruler');
+  if (!ruler) return;
+
+  const duration = audioEngine.getDuration();
+  if (!duration || duration <= 0) { ruler.innerHTML = ''; return; }
+
+  ruler.innerHTML = '';
+
+  for (const sec of sectionManager.getAll()) {
+    const leftPct  = (sec.startTime / 1000 / duration) * 100;
+    const widthPct = ((sec.endTime - sec.startTime) / 1000 / duration) * 100;
+
+    const block = document.createElement('div');
+    block.className = 'section-strip-block';
+    block.dataset.id = sec.id;
+    block.style.left  = `${leftPct}%`;
+    block.style.width = `${widthPct}%`;
+
+    const label = document.createElement('span');
+    label.className = 'section-strip-block-label';
+    label.textContent = sec.name;
+
+    const handleL = document.createElement('div');
+    handleL.className = 'section-strip-resize left';
+    const handleR = document.createElement('div');
+    handleR.className = 'section-strip-resize right';
+
+    block.appendChild(handleL);
+    block.appendChild(label);
+    block.appendChild(handleR);
+    ruler.appendChild(block);
+
+    // --- Drag to MOVE ---
+    block.addEventListener('mousedown', (e) => {
+      if (e.target === handleL || e.target === handleR) return;
+      if (e.button !== 0) return; // Only left click for drag
+      e.preventDefault();
+      const rulerRect = ruler.getBoundingClientRect();
+      const startX = e.clientX;
+      const origStartPct = (sec.startTime / 1000 / duration);
+      const origWidthPct = (sec.endTime - sec.startTime) / 1000 / duration;
+
+      const onMove = (me) => {
+        const dx = (me.clientX - startX) / rulerRect.width;
+        
+        let newStartPct = Math.max(0, origStartPct + dx);
+        let newEndPct = newStartPct + origWidthPct;
+        if (newEndPct > 1) { newEndPct = 1; newStartPct = 1 - origWidthPct; }
+        
+        const newStartTime = newStartPct * duration * 1000;
+        const offsetMs = newStartTime - sec.startTime;
+
+        // Move subtitles by the delta relative to the current position
+        if (offsetMs !== 0) {
+          sectionManager.moveSectionSubtitles(sec.id, offsetMs, subtitleManager);
+        }
+
+        // Update section data silently (without triggering re-render yet)
+        sec.startTime = newStartTime;
+        sec.endTime = newEndPct * duration * 1000;
+        
+        // Update ONLY the visual position of this block
+        block.style.left = `${newStartPct * 100}%`;
+      };
+      
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        // Final sync: notify listeners and redraw all waveform regions
+        sectionManager._sort();
+        sectionManager._notify();
+        syncSectionMarkers();
+        subtitleUI.syncRegions(); // re-render subtitle blocks at new positions
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    // --- Right Click to COPY ---
+    block.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      openCopySectionModal(sec.id);
+    });
+
+    // --- Drag LEFT edge to resize ---
+    handleL.addEventListener('mousedown', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const rulerRect = ruler.getBoundingClientRect();
+      const startX = e.clientX;
+      const origStart = sec.startTime / 1000;
+
+      const onMove = (me) => {
+        const dx = (me.clientX - startX) / rulerRect.width * duration;
+        const newStart = Math.max(0, origStart + dx);
+        if (newStart < sec.endTime / 1000 - 0.1) {
+          sectionManager.update(sec.id, { startTime: newStart * 1000 });
+          renderSectionsStrip();
+        }
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        syncSectionMarkers();
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    // --- Drag RIGHT edge to resize ---
+    handleR.addEventListener('mousedown', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const rulerRect = ruler.getBoundingClientRect();
+      const startX = e.clientX;
+      const origEnd = sec.endTime / 1000;
+
+      const onMove = (me) => {
+        const dx = (me.clientX - startX) / rulerRect.width * duration;
+        const newEnd = Math.min(duration, origEnd + dx);
+        if (newEnd > sec.startTime / 1000 + 0.1) {
+          sectionManager.update(sec.id, { endTime: newEnd * 1000 });
+          renderSectionsStrip();
+        }
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        syncSectionMarkers();
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
   }
 }
 

@@ -8,14 +8,14 @@ let _sectionNextId = 1;
 
 /** Predefined section types with default colors */
 export const SECTION_TYPES = [
-  { type: 'INTRO',    label: 'Intro',    color: '#64748b' },
-  { type: 'VERSO',    label: 'Verso',    color: '#3b82f6' },
-  { type: 'PRECORO',  label: 'Precoro',  color: '#f59e0b' },
-  { type: 'CORO',     label: 'Coro',     color: '#ef4444' },
-  { type: 'PUENTE',   label: 'Puente',   color: '#8b5cf6' },
-  { type: 'OUTRO',    label: 'Outro',    color: '#64748b' },
-  { type: 'ADLIB',    label: 'Ad-lib',   color: '#ec4899' },
-  { type: 'CUSTOM',   label: 'Custom',   color: '#06b6d4' },
+  { type: 'INTRO',    label: 'Intro',    color: '#ffd700' },
+  { type: 'VERSO',    label: 'Verso',    color: '#ffea00' },
+  { type: 'PRECORO',  label: 'Precoro',  color: '#ffff00' },
+  { type: 'CORO',     label: 'Coro',     color: '#ffd700' },
+  { type: 'PUENTE',   label: 'Puente',   color: '#ffea00' },
+  { type: 'OUTRO',    label: 'Outro',    color: '#ffd700' },
+  { type: 'ADLIB',    label: 'Ad-lib',   color: '#ffff00' },
+  { type: 'CUSTOM',   label: 'Custom',   color: '#ffd700' },
 ];
 
 export class SectionManager {
@@ -151,6 +151,23 @@ export class SectionManager {
     this.add(section.type, targetTimeMs, targetTimeMs + sectionDuration, section.name);
 
     return newSubs;
+  }
+
+  /**
+   * Move all subtitles within a section by a given offset
+   */
+  moveSectionSubtitles(sectionId, offsetMs, subtitleManager) {
+    const section = this.get(sectionId);
+    if (!section) return;
+
+    const subs = this.getSubtitlesInSection(sectionId, subtitleManager);
+    for (const sub of subs) {
+      // Use silent update to avoid firing syncRegions on every drag pixel
+      subtitleManager.updateSilent(sub.id, {
+        startTime: sub.startTime + offsetMs,
+        endTime: sub.endTime + offsetMs
+      });
+    }
   }
 
   /**

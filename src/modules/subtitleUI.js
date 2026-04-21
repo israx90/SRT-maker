@@ -382,8 +382,10 @@ export class SubtitleUI {
    * Sync regions with wavesurfer
    */
   syncRegions() {
+    if (!this.engine.regions) return;
+
     // Clear only subtitle regions (not section markers)
-    const allRegions = this.engine.regions ? this.engine.regions.getRegions() : [];
+    const allRegions = this.engine.regions.getRegions();
     for (const region of allRegions) {
       if (region.id.startsWith('sub-')) {
         region.remove();
@@ -398,11 +400,11 @@ export class SubtitleUI {
       const sub = subs[i];
       const isOverlap = overlapIndices.has(i);
       const isActive = sub.id === this.selectedId;
-      let color = 'rgba(59, 130, 246, 0.15)';
-      if (isOverlap) color = 'rgba(239, 68, 68, 0.25)';
-      if (isActive) color = 'rgba(6, 182, 212, 0.35)';
+      let color = 'rgba(255, 215, 0, 0.18)';
+      if (isOverlap) color = 'rgba(239, 68, 68, 0.3)';
+      if (isActive) color = 'rgba(255, 215, 0, 0.42)';
 
-      this.engine.addRegion(sub.id, sub.startTime / 1000, sub.endTime / 1000, '', color);
+      this.engine.addRegion(sub.id, sub.startTime / 1000, sub.endTime / 1000, sub.text, color);
     }
   }
 
