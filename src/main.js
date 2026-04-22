@@ -1,5 +1,5 @@
 /**
- * SRT Lyrics Studio — Main Entry Point
+ * IRXs Lyric Studio — Main Entry Point
  * Orchestrates all modules and handles global state
  */
 
@@ -11,10 +11,10 @@ import { FileManager } from './modules/fileManager.js';
 import { SpeechDetector } from './modules/speechDetector.js';
 import { SectionManager, SECTION_TYPES } from './modules/sectionManager.js';
 import { msToDisplay, serializeSRTWithSections } from './modules/srtParser.js';
-import { I18n } from './modules/i18n.js';
+import i18n from './modules/i18n.js';
 
 // ─── Instances ───
-const i18n = new I18n();
+
 const audioEngine = new AudioEngine();
 const bpmDetector = new BPMDetector();
 const subtitleManager = new SubtitleManager();
@@ -72,7 +72,11 @@ function init() {
     renderSectionChips();
     syncSectionMarkers();
     renderSectionsStrip();
+    subtitleUI.renderList();
   };
+
+  // Setup fullscreen karaoke player
+  setupFullscreenPlayer();
 }
 
 // ─── File Manager Setup ───
@@ -96,12 +100,24 @@ function setupFileManager() {
     showToast(`SRT importado: ${subtitles.length} subtítulos`, 'success');
   };
 
+  fileManager.onLyricLoaded = ({ version, sections, subtitles }) => {
+    subtitleManager.load(subtitles);
+    // Load sections
+    sectionManager.sections = [];
+    for (const sec of sections) {
+      sectionManager.add(sec.type, sec.startTime, sec.endTime, sec.name || '');
+    }
+    showToast(`.lyric cargado: ${subtitles.length} bloques, ${sections.length} secciones`, 'success');
+  };
+
   document.getElementById('btn-import-audio').addEventListener('click', () => fileManager.openAudioPicker());
-  document.getElementById('btn-import-srt').addEventListener('click', () => fileManager.openSRTPicker());
-  document.getElementById('btn-export-srt').addEventListener('click', exportSRT);
+  document.getElementById('btn-import-srt').addEventListener('click', () => fileManager.openLyricPicker());
+  document.getElementById('btn-export-srt').addEventListener('click', exportLyric);
+  const btnExportSrt = document.getElementById('btn-export-srt-compat');
+  if (btnExportSrt) btnExportSrt.addEventListener('click', exportSRT);
   document.getElementById('btn-save-project').addEventListener('click', () => {
-    fileManager.saveProject(subtitleManager.getAll(), { bpm: bpmDetector.bpm, sections: sectionManager.getAll() });
-    showToast('Proyecto guardado', 'success');
+    fileManager.saveProject(subtitleManager.getAll(), sectionManager.getAll());
+    showToast('Proyecto .lyric guardado', 'success');
   });
   document.getElementById('btn-load-project').addEventListener('click', () => fileManager.openProjectPicker());
   document.getElementById('btn-welcome-load').addEventListener('click', () => fileManager.openAudioPicker());
@@ -125,7 +141,37 @@ function setupAudioCallbacks() {
     if (region.id.startsWith('section-')) {
       const id = parseInt(region.id.replace('section-', ''));
       if (!isNaN(id)) {
-        sectionManager.update(id, { startTime: region.start * 1000, endTime: region.end * 1000 });
+        let startMs = region.start * 1000;
+        let endMs = region.end * 1000;
+        if (_magneticSnap) {
+          const originalSec = sectionManager.get(id);
+          if (originalSec) {
+            const originalDuration = originalSec.endTime - originalSec.startTime;
+            const isMove = Math.abs((endMs - startMs) - originalDuration) < 5;
+            const boundaries = getGlobalSnapBoundaries(null, id);
+            const snappedStart = snapToNearestEdge(startMs, boundaries, 150);
+            const snappedEnd = snapToNearestEdge(endMs, boundaries, 150);
+            
+            if (isMove) {
+              if (snappedStart !== startMs) {
+                startMs = snappedStart;
+                endMs = startMs + originalDuration;
+              } else if (snappedEnd !== endMs) {
+                endMs = snappedEnd;
+                startMs = endMs - originalDuration;
+              }
+            } else {
+              startMs = snappedStart;
+              endMs = snappedEnd;
+            }
+            if (endMs <= startMs) endMs = startMs + 100;
+          }
+        }
+        // Visually snap
+        if (Math.abs(region.start * 1000 - startMs) > 1 || Math.abs(region.end * 1000 - endMs) > 1) {
+          region.setOptions({ start: startMs / 1000, end: endMs / 1000 });
+        }
+        sectionManager.update(id, { startTime: startMs, endTime: endMs });
       }
       return;
     }
@@ -138,6 +184,10 @@ function setupAudioCallbacks() {
         const result = magneticAdjust(id, startMs, endMs);
         startMs = result.startTime;
         endMs = result.endTime;
+      }
+      // Visually snap
+      if (Math.abs(region.start * 1000 - startMs) > 1 || Math.abs(region.end * 1000 - endMs) > 1) {
+        region.setOptions({ start: startMs / 1000, end: endMs / 1000 });
       }
       // Use silent update to avoid re-triggering syncRegions → region.setOptions → region-updated loop
       subtitleManager.updateSilent(id, { startTime: startMs, endTime: endMs });
@@ -163,8 +213,7 @@ function setupTransportControls() {
   document.getElementById('zoom-slider').addEventListener('input', (e) => { audioEngine.setZoom(parseInt(e.target.value)); });
   document.getElementById('volume-slider').addEventListener('input', (e) => { audioEngine.setVolume(parseFloat(e.target.value)); });
   document.getElementById('btn-full-frame').addEventListener('click', () => {
-    document.body.classList.toggle('full-frame');
-    showToast(document.body.classList.contains('full-frame') ? 'Modo Full Frame activado' : 'Modo estándar activado', 'info');
+    openFullscreenPlayer();
   });
 
   // Mouse wheel interaction on waveform
@@ -219,6 +268,8 @@ function setupToolbar() {
   document.getElementById('btn-undo').addEventListener('click', () => {
     if (subtitleManager.undo()) showToast('Acción deshecha', 'info');
   });
+  // Add overlay button
+  document.getElementById('btn-add-overlay').addEventListener('click', () => addOverlayAtCurrentTime());
 }
 
 // ─── Quick Lyrics Input ───
@@ -293,9 +344,18 @@ function saveSection() {
     showToast('Verifica los tiempos de inicio y fin', 'warning');
     return;
   }
-  sectionManager.add(type, startMs, endMs, type === 'CUSTOM' ? customName : '');
+  const sec = sectionManager.add(type, startMs, endMs, type === 'CUSTOM' ? customName : '');
+  
+  // Auto-snap to subtitle blocks
+  const snapResult = sectionManager.magneticSnapSection(sec.id, subtitleManager);
+  
   closeSectionModal();
-  showToast(`Sección "${type}" añadida`, 'success');
+  
+  if (snapResult.snapped) {
+    showToast(`Sección "${type}" añadida y auto-ajustada`, 'success');
+  } else {
+    showToast(`Sección "${type}" añadida`, 'success');
+  }
 }
 
 function renderSectionChips() {
@@ -309,6 +369,9 @@ function renderSectionChips() {
     <div class="section-chip" data-id="${s.id}" style="--chip-color: ${s.color}" title="${msToDisplay(s.startTime)} → ${msToDisplay(s.endTime)}">
       <span class="section-chip-name">${s.name}</span>
       <span class="section-chip-time">${msToDisplay(s.startTime)}</span>
+      <button class="section-chip-snap" data-id="${s.id}" title="Snap magnético">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/><line x1="10" y1="7" x2="14" y2="7"/></svg>
+      </button>
       <button class="section-chip-copy" data-id="${s.id}" title="Copiar sección">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
       </button>
@@ -319,10 +382,25 @@ function renderSectionChips() {
   // Chip click -> seek
   container.querySelectorAll('.section-chip').forEach(el => {
     el.addEventListener('click', (e) => {
-      if (e.target.closest('.section-chip-copy') || e.target.closest('.section-chip-delete')) return;
+      if (e.target.closest('.section-chip-copy') || e.target.closest('.section-chip-delete') || e.target.closest('.section-chip-snap')) return;
       const id = parseInt(el.dataset.id);
       const sec = sectionManager.get(id);
       if (sec) audioEngine.seekTo(sec.startTime / 1000);
+    });
+  });
+
+  // Snap magnético button
+  container.querySelectorAll('.section-chip-snap').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.id);
+      const result = sectionManager.magneticSnapSection(id, subtitleManager);
+      if (result.snapped) {
+        syncSectionMarkers();
+        showToast('Sección ajustada a los subtítulos', 'success');
+      } else {
+        showToast('No hay subtítulos en esta sección', 'warning');
+      }
     });
   });
 
@@ -349,7 +427,8 @@ function renderSectionChips() {
 function syncSectionMarkers() {
   audioEngine.clearSectionMarkers();
   for (const sec of sectionManager.getAll()) {
-    audioEngine.addSectionMarker(sec.id, sec.startTime / 1000, sec.endTime / 1000, sec.name, sec.color);
+    const displayLabel = sec.type === 'CUSTOM' ? sec.name : i18n.t('sec_' + sec.type.toLowerCase());
+    audioEngine.addSectionMarker(sec.id, sec.startTime / 1000, sec.endTime / 1000, displayLabel, sec.color);
   }
 }
 
@@ -376,27 +455,82 @@ function confirmCopySection() {
   showToast(`Sección copiada: ${newSubs.length} subtítulo${newSubs.length !== 1 ? 's' : ''}`, 'success');
 }
 
-// ─── Magnetic Snap (prevent overlaps) ───
+// ─── Global Snapping ───
+function getGlobalSnapBoundaries(excludeSubId = null, excludeSecId = null) {
+  const boundaries = new Set();
+  subtitleManager.getAll().forEach(sub => {
+    if (excludeSubId !== null && sub.id === excludeSubId) return;
+    boundaries.add(sub.startTime);
+    boundaries.add(sub.endTime);
+  });
+  sectionManager.getAll().forEach(sec => {
+    if (excludeSecId !== null && sec.id === excludeSecId) return;
+    boundaries.add(sec.startTime);
+    boundaries.add(sec.endTime);
+  });
+  boundaries.add(0);
+  return Array.from(boundaries);
+}
+
+function snapToNearestEdge(timeMs, boundaries, toleranceMs = 200) {
+  let nearest = null;
+  let minDiff = Infinity;
+  for (const b of boundaries) {
+    const diff = Math.abs(timeMs - b);
+    if (diff < minDiff && diff <= toleranceMs) {
+      minDiff = diff;
+      nearest = b;
+    }
+  }
+  return nearest !== null ? nearest : timeMs;
+}
+
+// ─── Magnetic Snap (prevent overlaps & global snap) ───
 function magneticAdjust(id, startMs, endMs) {
   const GAP = 10; // 10ms gap between subtitles
-  const subs = subtitleManager.getAll();
-  const idx = subs.findIndex(s => s.id === id);
-  const prev = idx > 0 ? subs[idx - 1] : null;
-  const next = idx < subs.length - 1 ? subs[idx + 1] : null;
+  const sub = subtitleManager.get(id);
+  const isPrimary = sub && sub.layer === 0;
 
-  // Prevent overlapping with previous subtitle
-  if (prev && startMs < prev.endTime) {
-    const shift = prev.endTime + GAP - startMs;
-    startMs = prev.endTime + GAP;
-    endMs += shift;
+  // 1. Prevent overlapping with other primary subtitles
+  if (isPrimary) {
+    const layerSubs = subtitleManager.subtitles.filter(s => s.layer === 0);
+    const idx = layerSubs.findIndex(s => s.id === id);
+    const prev = idx > 0 ? layerSubs[idx - 1] : null;
+    const next = idx < layerSubs.length - 1 ? layerSubs[idx + 1] : null;
+
+    if (prev && startMs < prev.endTime) {
+      const shift = prev.endTime + GAP - startMs;
+      startMs = prev.endTime + GAP;
+      endMs += shift;
+    }
+    if (next && endMs > next.startTime) {
+      endMs = next.startTime - GAP;
+    }
   }
 
-  // Prevent overlapping with next subtitle
-  if (next && endMs > next.startTime) {
-    endMs = next.startTime - GAP;
+  // 2. Global Magnetic Snapping
+  if (sub) {
+    const originalDuration = sub.endTime - sub.startTime;
+    const isMove = Math.abs((endMs - startMs) - originalDuration) < 5;
+    const boundaries = getGlobalSnapBoundaries(id, null);
+    const snappedStart = snapToNearestEdge(startMs, boundaries, 150); // 150ms tolerance
+    const snappedEnd = snapToNearestEdge(endMs, boundaries, 150);
+
+    if (isMove) {
+      if (snappedStart !== startMs) {
+        startMs = snappedStart;
+        endMs = startMs + originalDuration;
+      } else if (snappedEnd !== endMs) {
+        endMs = snappedEnd;
+        startMs = endMs - originalDuration;
+      }
+    } else {
+      startMs = snappedStart;
+      endMs = snappedEnd;
+    }
   }
 
-  // Ensure minimum duration
+  // 3. Ensure minimum duration
   if (endMs <= startMs) endMs = startMs + 100;
 
   return { startTime: startMs, endTime: endMs };
@@ -406,8 +540,17 @@ function magneticAdjust(id, startMs, endMs) {
 function addSubtitleAtCurrentTime() {
   if (!audioEngine.isReady) { showToast('Carga un audio primero', 'warning'); return; }
   const currentMs = audioEngine.getCurrentTime() * 1000;
-  const sub = subtitleManager.add(currentMs, currentMs + 2000, '');
+  const sub = subtitleManager.add(currentMs, currentMs + 2000, '', 0);
   subtitleUI.select(sub.id);
+  setTimeout(() => { const ta = document.getElementById('edit-text'); if (ta) ta.focus(); }, 50);
+}
+
+function addOverlayAtCurrentTime() {
+  if (!audioEngine.isReady) { showToast('Carga un audio primero', 'warning'); return; }
+  const currentMs = audioEngine.getCurrentTime() * 1000;
+  const sub = subtitleManager.add(currentMs, currentMs + 2000, '', 1);
+  subtitleUI.select(sub.id);
+  showToast('Overlay añadido (capa 2)', 'success');
   setTimeout(() => { const ta = document.getElementById('edit-text'); if (ta) ta.focus(); }, 50);
 }
 
@@ -448,12 +591,20 @@ function snapSubtitlesToBPM() {
   showToast(`${snapped} subtítulo${snapped !== 1 ? 's' : ''} alineado${snapped !== 1 ? 's' : ''} al BPM`, 'success');
 }
 
-// ─── Export SRT (with sections) ───
+// ─── Export .lyric (native) ───
+function exportLyric() {
+  const subs = subtitleManager.getAll();
+  if (subs.length === 0) { showToast('No hay bloques para exportar', 'warning'); return; }
+  const sections = sectionManager.getAll();
+  fileManager.exportLyric(subs, sections);
+  showToast('.lyric exportado correctamente', 'success');
+}
+
+// ─── Export SRT (compatibility) ───
 function exportSRT() {
   const subs = subtitleManager.getAll();
   if (subs.length === 0) { showToast('No hay subtítulos para exportar', 'warning'); return; }
   const sections = sectionManager.getAll();
-  // Use section-aware serializer if there are sections
   if (sections.length > 0) {
     const srtContent = serializeSRTWithSections(subs, sections);
     const blob = new Blob([srtContent], { type: 'text/plain;charset=utf-8' });
@@ -482,6 +633,7 @@ function setupDragDrop() {
     for (const file of Array.from(e.dataTransfer.files)) {
       const ext = file.name.split('.').pop().toLowerCase();
       if (['mp3','wav','ogg','m4a','flac','aac','webm'].includes(ext)) fileManager.onAudioLoaded(file);
+      else if (ext === 'lyric') fileManager._handleLyricFile(file);
       else if (['srt','txt'].includes(ext)) fileManager._handleSRTFile(file);
     }
   });
@@ -493,7 +645,8 @@ function setupKeyboardShortcuts() {
     const active = document.activeElement;
     const isEditing = active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && active.type === 'text'));
     if (e.ctrlKey && e.key === 's') { e.preventDefault(); exportSRT(); return; }
-    if (e.ctrlKey && e.key === 'z') { e.preventDefault(); if (subtitleManager.undo()) showToast('Acción deshecha', 'info'); return; }
+    // Ctrl+Z (Win/Linux) or Cmd+Z (Mac)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); if (subtitleManager.undo()) showToast('Acción deshecha', 'info'); return; }
     if (isEditing) return;
     switch (e.key) {
       case ' ': e.preventDefault(); audioEngine.playPause(); updatePlayButton(); break;
@@ -605,7 +758,7 @@ function renderSectionsStrip() {
 
     const label = document.createElement('span');
     label.className = 'section-strip-block-label';
-    label.textContent = sec.name;
+    label.textContent = sec.type === 'CUSTOM' ? sec.name : i18n.t('sec_' + sec.type.toLowerCase());
 
     const handleL = document.createElement('div');
     handleL.className = 'section-strip-resize left';
@@ -653,6 +806,22 @@ function renderSectionsStrip() {
       const onUp = () => {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
+        
+        if (_magneticSnap) {
+          const originalDuration = sec.endTime - sec.startTime;
+          const boundaries = getGlobalSnapBoundaries(null, sec.id);
+          const snappedStart = snapToNearestEdge(sec.startTime, boundaries, 150);
+          
+          if (snappedStart !== sec.startTime) {
+            const snapOffset = snappedStart - sec.startTime;
+            if (snapOffset !== 0) {
+              sectionManager.moveSectionSubtitles(sec.id, snapOffset, subtitleManager);
+            }
+            sec.startTime = snappedStart;
+            sec.endTime = snappedStart + originalDuration;
+          }
+        }
+
         // Final sync: notify listeners and redraw all waveform regions
         sectionManager._sort();
         sectionManager._notify();
@@ -742,11 +911,15 @@ function setupLangToggle() {
   document.getElementById('btn-lang-es').addEventListener('click', () => {
     i18n.setLanguage('es');
     updateLangButtons();
+    syncSectionMarkers();
+    renderSectionsStrip();
     showToast('Idioma cambiado a Español', 'info');
   });
   document.getElementById('btn-lang-en').addEventListener('click', () => {
     i18n.setLanguage('en');
     updateLangButtons();
+    syncSectionMarkers();
+    renderSectionsStrip();
     showToast('Language changed to English', 'info');
   });
 }
@@ -761,6 +934,88 @@ function updateLangButtons() {
     btnEs.classList.remove('active');
     btnEn.classList.add('active');
   }
+}
+
+// ─── Fullscreen Karaoke Player ───
+function setupFullscreenPlayer() {
+  const fsPlayer = document.getElementById('fullscreen-player');
+  const fsCloseBtn = document.getElementById('fs-close-btn');
+  const fsPlayBtn = document.getElementById('fs-play-btn');
+  const fsProgressBar = document.getElementById('fs-progress-bar');
+
+  // Close button
+  fsCloseBtn.addEventListener('click', closeFullscreenPlayer);
+
+  // Play/Pause
+  fsPlayBtn.addEventListener('click', () => {
+    audioEngine.playPause();
+    updateFsPlayButton();
+  });
+
+  // Progress bar click to seek
+  fsProgressBar.addEventListener('click', (e) => {
+    if (!audioEngine.isReady) return;
+    const rect = fsProgressBar.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    const duration = audioEngine.getDuration();
+    audioEngine.seekTo(pct * duration);
+  });
+
+  // Listen for fullscreenchange to sync state
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+      fsPlayer.style.display = 'none';
+    }
+  });
+
+  // Escape key while in fullscreen
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && fsPlayer.style.display !== 'none') {
+      closeFullscreenPlayer();
+    }
+  });
+
+  // Update play button state periodically
+  setInterval(() => {
+    if (fsPlayer.style.display !== 'none') {
+      updateFsPlayButton();
+    }
+  }, 200);
+}
+
+function openFullscreenPlayer() {
+  if (!audioEngine.isReady) {
+    showToast('Carga un audio primero', 'warning');
+    return;
+  }
+  const fsPlayer = document.getElementById('fullscreen-player');
+  fsPlayer.style.display = 'flex';
+
+  // Try Fullscreen API
+  if (fsPlayer.requestFullscreen) {
+    fsPlayer.requestFullscreen().catch(() => {});
+  } else if (fsPlayer.webkitRequestFullscreen) {
+    fsPlayer.webkitRequestFullscreen();
+  }
+
+  updateFsPlayButton();
+  showToast('Modo karaoke fullscreen', 'info');
+}
+
+function closeFullscreenPlayer() {
+  const fsPlayer = document.getElementById('fullscreen-player');
+  fsPlayer.style.display = 'none';
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+
+function updateFsPlayButton() {
+  const playing = audioEngine.isPlaying();
+  const fsPlayIcon = document.getElementById('fs-play-icon');
+  const fsPauseIcon = document.getElementById('fs-pause-icon');
+  if (fsPlayIcon) fsPlayIcon.style.display = playing ? 'none' : 'block';
+  if (fsPauseIcon) fsPauseIcon.style.display = playing ? 'block' : 'none';
 }
 
 // ─── Start ───

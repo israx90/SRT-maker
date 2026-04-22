@@ -106,7 +106,28 @@ export class AudioEngine {
         align-items: center !important;
         padding: 0 4px !important;
         box-sizing: border-box !important;
+        /* Normal text blocks at the bottom */
+        height: 30% !important;
+        top: auto !important;
+        bottom: 0 !important;
       }
+
+      /* Overlay text blocks at the top */
+      .region.overlay-region {
+        height: 30% !important;
+        top: 0 !important;
+        bottom: auto !important;
+        background-color: rgba(128, 128, 128, 0.4) !important;
+        border-color: rgba(128, 128, 128, 0.7) !important;
+      }
+
+      /* Section markers cover full height */
+      .region.section-region {
+        height: 100% !important;
+        top: 0 !important;
+        bottom: 0 !important;
+      }
+
       .region-content {
         color: #fff !important;
         font-size: 10px !important;
@@ -241,8 +262,8 @@ export class AudioEngine {
   /**
    * Add a region (subtitle visualization)
    */
-  addRegion(id, start, end, text, color = 'rgba(255, 215, 0, 0.2)') {
-    return this.regions.addRegion({
+  addRegion(id, start, end, text, color = 'rgba(251, 186, 22, 0.12)', layer = 0) {
+    const regionOpts = {
       id: `sub-${id}`,
       start,
       end,
@@ -251,7 +272,38 @@ export class AudioEngine {
       drag: true,
       resize: true,
       minLength: 0.1,
+    };
+    const region = this.regions.addRegion(regionOpts);
+
+    requestAnimationFrame(() => {
+      let el = region.element;
+      if (!el) {
+        const root = document.getElementById('waveform')?.shadowRoot || document;
+        el = root.querySelector(`[data-id="sub-${id}"]`) || root.querySelector(`[part*="region"][data-id="sub-${id}"]`);
+      }
+      if (el) {
+        // Force visual layout via inline styles to ensure it works in wavesurfer v7
+        el.style.setProperty('height', '30%', 'important');
+        el.style.setProperty('display', 'flex', 'important');
+        el.style.setProperty('align-items', 'center', 'important');
+        el.style.setProperty('padding', '0 4px', 'important');
+        el.style.setProperty('box-sizing', 'border-box', 'important');
+        el.style.setProperty('overflow', 'hidden', 'important');
+        el.style.setProperty('border-radius', '4px', 'important');
+
+        if (layer === 1) {
+          el.style.setProperty('top', '0', 'important');
+          el.style.setProperty('bottom', 'auto', 'important');
+          el.style.setProperty('border', '1px solid rgba(200, 200, 200, 0.5)', 'important');
+        } else {
+          el.style.setProperty('bottom', '0', 'important');
+          el.style.setProperty('top', 'auto', 'important');
+          el.style.setProperty('border', '1px solid rgba(255, 215, 0, 0.6)', 'important');
+        }
+      }
     });
+
+    return region;
   }
 
   /**
@@ -317,16 +369,37 @@ export class AudioEngine {
    * Add a section marker (visual band with label on the waveform)
    */
   addSectionMarker(id, start, end, label, color) {
-    const alpha = '18'; // ~10% opacity hex
-    return this.regions.addRegion({
+    const region = this.regions.addRegion({
       id: `section-${id}`,
       start,
       end,
       content: label,
-      color: color + alpha,
+      color: 'transparent',
       drag: true,
       resize: true,
     });
+
+    requestAnimationFrame(() => {
+      let el = region.element;
+      if (!el) {
+        const root = document.getElementById('waveform')?.shadowRoot || document;
+        el = root.querySelector(`[data-id="section-${id}"]`);
+      }
+      if (el) {
+        el.style.setProperty('height', '100%', 'important');
+        el.style.setProperty('top', '0', 'important');
+        el.style.setProperty('bottom', '0', 'important');
+        el.style.setProperty('display', 'flex', 'important');
+        el.style.setProperty('align-items', 'flex-start', 'important');
+        el.style.setProperty('padding', '4px', 'important');
+        el.style.setProperty('z-index', '0', 'important');
+        el.style.setProperty('background', `linear-gradient(to bottom, ${color}66 0px, ${color}66 24px, ${color}11 24px, ${color}11 100%)`, 'important');
+        el.style.setProperty('border-left', `1px solid ${color}88`, 'important');
+        el.style.setProperty('border-right', `1px solid ${color}88`, 'important');
+      }
+    });
+
+    return region;
   }
 
   /**

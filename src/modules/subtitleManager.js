@@ -9,7 +9,7 @@ let _nextId = 1;
 
 export class SubtitleManager {
   constructor() {
-    /** @type {Array<{id: number, startTime: number, endTime: number, text: string}>} */
+    /** @type {Array<{id: number, startTime: number, endTime: number, text: string, layer: number}>} */
     this.subtitles = [];
     this.undoStack = [];
     this.maxUndo = 50;
@@ -51,7 +51,8 @@ export class SubtitleManager {
     this._saveState();
     this.subtitles = subtitles.map(s => ({
       ...s,
-      id: _nextId++
+      id: _nextId++,
+      layer: s.layer || 0
     }));
     this._sort();
     this._notify();
@@ -76,10 +77,10 @@ export class SubtitleManager {
   /**
    * Add a new subtitle
    */
-  add(startTime, endTime, text = '') {
+  add(startTime, endTime, text = '', layer = 0) {
     this._saveState();
     const id = _nextId++;
-    const sub = { id, startTime, endTime, text };
+    const sub = { id, startTime, endTime, text, layer };
     this.subtitles.push(sub);
     this._sort();
     this._notify();
@@ -132,10 +133,20 @@ export class SubtitleManager {
   /**
    * Get subtitle at a given time
    */
-  getAtTime(timeMs) {
+  getAtTime(timeMs, layer = 0) {
     return this.subtitles.find(
-      s => timeMs >= s.startTime && timeMs <= s.endTime
+      s => s.layer === layer && timeMs >= s.startTime && timeMs <= s.endTime
     ) || null;
+  }
+
+  /**
+   * Get ALL subtitles active at a given time (across all layers)
+   * @returns {Array} Array of subtitle objects active at timeMs
+   */
+  getAllAtTime(timeMs) {
+    return this.subtitles.filter(
+      s => timeMs >= s.startTime && timeMs <= s.endTime
+    );
   }
 
   /**
@@ -146,21 +157,27 @@ export class SubtitleManager {
   }
 
   /**
-   * Get next subtitle after the given id
+   * Get next subtitle after the given id on the same layer
    */
   getNext(id) {
-    const idx = this.indexOf(id);
-    if (idx === -1 || idx >= this.subtitles.length - 1) return null;
-    return this.subtitles[idx + 1];
+    const sub = this.get(id);
+    if (!sub) return null;
+    const layerSubs = this.subtitles.filter(s => s.layer === sub.layer);
+    const idx = layerSubs.findIndex(s => s.id === id);
+    if (idx === -1 || idx >= layerSubs.length - 1) return null;
+    return layerSubs[idx + 1];
   }
 
   /**
-   * Get previous subtitle before the given id
+   * Get previous subtitle before the given id on the same layer
    */
   getPrev(id) {
-    const idx = this.indexOf(id);
+    const sub = this.get(id);
+    if (!sub) return null;
+    const layerSubs = this.subtitles.filter(s => s.layer === sub.layer);
+    const idx = layerSubs.findIndex(s => s.id === id);
     if (idx <= 0) return null;
-    return this.subtitles[idx - 1];
+    return layerSubs[idx - 1];
   }
 
   /**
@@ -170,7 +187,9 @@ export class SubtitleManager {
   detectOverlaps() {
     const overlaps = [];
     for (let i = 1; i < this.subtitles.length; i++) {
-      if (this.subtitles[i].startTime < this.subtitles[i - 1].endTime) {
+      // Only detect overlaps within the same layer
+      if (this.subtitles[i].layer === this.subtitles[i - 1].layer &&
+          this.subtitles[i].startTime < this.subtitles[i - 1].endTime) {
         overlaps.push({
           index: i,
           overlapWith: i - 1,
@@ -189,7 +208,9 @@ export class SubtitleManager {
     this._sort();
     let fixed = 0;
     for (let i = 1; i < this.subtitles.length; i++) {
-      if (this.subtitles[i].startTime < this.subtitles[i - 1].endTime) {
+      // Only fix overlaps within the same layer
+      if (this.subtitles[i].layer === this.subtitles[i - 1].layer &&
+          this.subtitles[i].startTime < this.subtitles[i - 1].endTime) {
         this.subtitles[i - 1].endTime = this.subtitles[i].startTime - gapMs;
         if (this.subtitles[i - 1].endTime <= this.subtitles[i - 1].startTime) {
           this.subtitles[i - 1].endTime = this.subtitles[i - 1].startTime + 100;

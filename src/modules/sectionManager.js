@@ -8,14 +8,14 @@ let _sectionNextId = 1;
 
 /** Predefined section types with default colors */
 export const SECTION_TYPES = [
-  { type: 'INTRO',    label: 'Intro',    color: '#ffd700' },
-  { type: 'VERSO',    label: 'Verso',    color: '#ffea00' },
-  { type: 'PRECORO',  label: 'Precoro',  color: '#ffff00' },
-  { type: 'CORO',     label: 'Coro',     color: '#ffd700' },
-  { type: 'PUENTE',   label: 'Puente',   color: '#ffea00' },
-  { type: 'OUTRO',    label: 'Outro',    color: '#ffd700' },
-  { type: 'ADLIB',    label: 'Ad-lib',   color: '#ffff00' },
-  { type: 'CUSTOM',   label: 'Custom',   color: '#ffd700' },
+  { type: 'INTRO',    label: 'Intro',    color: '#fde047' }, // Light Yellow
+  { type: 'VERSO',    label: 'Verso',    color: '#fb923c' }, // Orange
+  { type: 'PRECORO',  label: 'Precoro',  color: '#f87171' }, // Coral / Soft Red
+  { type: 'CORO',     label: 'Coro',     color: '#fbba16' }, // Main Gold
+  { type: 'PUENTE',   label: 'Puente',   color: '#c084fc' }, // Soft Purple
+  { type: 'OUTRO',    label: 'Outro',    color: '#94a3b8' }, // Slate
+  { type: 'ADLIB',    label: 'Ad-lib',   color: '#34d399' }, // Soft Green
+  { type: 'CUSTOM',   label: 'Custom',   color: '#fbba16' }, // Gold
 ];
 
 export class SectionManager {
@@ -168,6 +168,39 @@ export class SectionManager {
         endTime: sub.endTime + offsetMs
       });
     }
+  }
+
+  /**
+   * Magnetic snap: adjust section boundaries to match the outermost subtitles within it.
+   * The section's start snaps to the first subtitle's startTime,
+   * and the section's end snaps to the last subtitle's endTime.
+   * @returns {{ snapped: boolean, startDelta: number, endDelta: number }}
+   */
+  magneticSnapSection(sectionId, subtitleManager) {
+    const section = this.get(sectionId);
+    if (!section) return { snapped: false, startDelta: 0, endDelta: 0 };
+
+    // Find all subtitles that fall within or overlap with this section
+    const subs = subtitleManager.getAll().filter(
+      sub => sub.startTime >= section.startTime - 2000 && sub.endTime <= section.endTime + 2000
+        && sub.startTime < section.endTime && sub.endTime > section.startTime
+    );
+
+    if (subs.length === 0) return { snapped: false, startDelta: 0, endDelta: 0 };
+
+    const firstSub = subs[0]; // Already sorted by startTime
+    const lastSub = subs[subs.length - 1];
+
+    const startDelta = firstSub.startTime - section.startTime;
+    const endDelta = lastSub.endTime - section.endTime;
+
+    section.startTime = firstSub.startTime;
+    section.endTime = lastSub.endTime;
+
+    this._sort();
+    this._notify();
+
+    return { snapped: true, startDelta, endDelta };
   }
 
   /**

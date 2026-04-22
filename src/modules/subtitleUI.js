@@ -5,6 +5,7 @@
  */
 
 import { msToDisplay } from './srtParser.js';
+import i18n from './i18n.js';
 
 export class SubtitleUI {
   constructor(subtitleManager, audioEngine) {
@@ -30,6 +31,7 @@ export class SubtitleUI {
     this.karaokePrevEl = document.getElementById('karaoke-prev');
     this.karaokeCurrentEl = document.getElementById('karaoke-current');
     this.karaokeNextEl = document.getElementById('karaoke-next');
+    this.karaokeOverlayEl = document.getElementById('karaoke-overlay');
 
     // Listen for manager changes
     this.manager.onChange = (subs) => {
@@ -63,22 +65,35 @@ export class SubtitleUI {
       const isActive = sub.id === this.selectedId;
       const isOverlap = overlapIndices.has(index);
       const duration = sub.endTime - sub.startTime;
+      const isOverlay = sub.layer === 1;
 
       // Get section info if available
+      let section = null;
       let sectionChip = '';
+      let sectionStyle = '';
       if (this.sectionManager) {
-        const section = this.sectionManager.getAtTime(sub.startTime);
+        section = this.sectionManager.getAtTime(sub.startTime);
         if (section) {
-          sectionChip = `<span class="sub-section-chip" style="--chip-color: ${section.color}">${section.name}</span>`;
+          const secName = section.type === 'CUSTOM' ? section.name : i18n.t('sec_' + section.type.toLowerCase());
+          sectionChip = `<span class="sub-section-chip" style="--chip-color: ${section.color}">${secName}</span>`;
+          // Section color indicator on left border (overlay keeps blue, section adds top stripe)
+          if (!isOverlay) {
+            sectionStyle = `style="--section-color: ${section.color}"`;
+          }
         }
       }
 
+      const layerBadge = isOverlay ? '<span class="sub-layer-badge">OVR</span>' : '';
+      const sectionClass = section && !isOverlay ? 'has-section' : '';
+
       return `
-        <div class="sub-item ${isActive ? 'active' : ''} ${isOverlap ? 'overlap' : ''}"
+        <div class="sub-item ${isActive ? 'active' : ''} ${isOverlap ? 'overlap' : ''} ${isOverlay ? 'overlay-item' : ''} ${sectionClass}"
              data-id="${sub.id}"
-             title="${isOverlap ? '⚠️ Solapamiento detectado' : ''}">
+             ${sectionStyle}
+             title="${isOverlap ? '⚠️ Solapamiento detectado' : ''} ${isOverlay ? 'Overlay (capa 2)' : ''}${section ? ' — ' + section.name : ''}">
           <div class="sub-item-header">
             <span class="sub-index">#${index + 1}</span>
+            ${layerBadge}
             ${sectionChip}
             <span class="sub-times">
               ${msToDisplay(sub.startTime)} → ${msToDisplay(sub.endTime)}
@@ -197,7 +212,8 @@ export class SubtitleUI {
     if (this.sectionManager) {
       const section = this.sectionManager.getAtTime(sub.startTime);
       if (section) {
-        sectionInfo = `<span class="editor-section-badge" style="--chip-color: ${section.color}">${section.name}</span>`;
+        const secName = section.type === 'CUSTOM' ? section.name : i18n.t('sec_' + section.type.toLowerCase());
+        sectionInfo = `<span class="editor-section-badge" style="--chip-color: ${section.color}">${secName}</span>`;
       }
     }
 
@@ -253,6 +269,15 @@ export class SubtitleUI {
             <span class="duration-display">${(duration / 1000).toFixed(2)}s</span>
           </div>
         </div>
+        <div class="editor-layer-row">
+          <div class="editor-field">
+            <label>Capa</label>
+            <select id="edit-layer">
+              <option value="0" ${sub.layer === 0 ? 'selected' : ''}>Principal</option>
+              <option value="1" ${sub.layer === 1 ? 'selected' : ''}>Overlay</option>
+            </select>
+          </div>
+        </div>
         <div class="editor-actions">
           <button class="btn btn-sm btn-split" title="Dividir en posición actual">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -274,6 +299,12 @@ export class SubtitleUI {
     const textArea = this.editorEl.querySelector('#edit-text');
     textArea.addEventListener('input', () => {
       this.manager.update(id, { text: textArea.value });
+    });
+
+    // Event: Layer change
+    const layerSelect = this.editorEl.querySelector('#edit-layer');
+    layerSelect.addEventListener('change', () => {
+      this.manager.update(id, { layer: parseInt(layerSelect.value) });
     });
 
     // Event: Time editing
@@ -337,11 +368,13 @@ export class SubtitleUI {
    */
   updatePreview(currentTimeSec) {
     const currentTimeMs = currentTimeSec * 1000;
-    const sub = this.manager.getAtTime(currentTimeMs);
+    const sub = this.manager.getAtTime(currentTimeMs, 0); // Primary layer
+    const overlaySub = this.manager.getAtTime(currentTimeMs, 1); // Overlay layer
     
     if (this.karaokeCurrentEl) {
       if (sub) {
-        this.karaokeCurrentEl.textContent = sub.text.replace(/\n/g, ' ');
+        // Show text preserving line breaks for multi-line
+        this.karaokeCurrentEl.innerHTML = this._escapeHtml(sub.text).replace(/\n/g, '<br>');
         
         const prev = this.manager.getPrev(sub.id);
         this.karaokePrevEl.textContent = prev ? prev.text.replace(/\n/g, ' ') : '';
@@ -358,7 +391,7 @@ export class SubtitleUI {
         
         // If there's no active subtitle, find the closest upcoming subtitle
         const allSubs = this.manager.getAll();
-        const nextSub = allSubs.find(s => s.startTime > currentTimeMs);
+        const nextSub = allSubs.find(s => s.layer === 0 && s.startTime > currentTimeMs);
         if (nextSub) {
            this.karaokePrevEl.textContent = '';
            this.karaokeNextEl.textContent = nextSub.text.replace(/\n/g, ' ');
@@ -367,6 +400,91 @@ export class SubtitleUI {
            this.karaokeNextEl.textContent = '';
         }
       }
+
+      // Overlay line
+      if (this.karaokeOverlayEl) {
+        if (overlaySub) {
+          this.karaokeOverlayEl.innerHTML = this._escapeHtml(overlaySub.text).replace(/\n/g, '<br>');
+          this.karaokeOverlayEl.style.display = 'block';
+          this.karaokeOverlayEl.style.opacity = '0.85';
+        } else {
+          const allSubs = this.manager.getAll();
+          const nextOverlay = allSubs.find(s => s.layer === 1 && s.startTime > currentTimeMs);
+          if (nextOverlay) {
+            this.karaokeOverlayEl.innerHTML = this._escapeHtml(nextOverlay.text).replace(/\n/g, '<br>');
+            this.karaokeOverlayEl.style.display = 'block';
+            this.karaokeOverlayEl.style.opacity = '0.3'; // Faded upcoming
+          } else {
+            this.karaokeOverlayEl.textContent = '';
+            this.karaokeOverlayEl.style.display = 'none';
+          }
+        }
+      }
+    }
+
+    // Also update fullscreen karaoke if visible
+    this._updateFullscreenKaraoke(currentTimeMs, sub, overlaySub);
+  }
+
+  /**
+   * Update fullscreen karaoke player
+   */
+  _updateFullscreenKaraoke(currentTimeMs, sub, overlaySub) {
+    const fsContainer = document.getElementById('fs-karaoke-container');
+    if (!fsContainer || fsContainer.closest('#fullscreen-player')?.style.display === 'none') return;
+
+    const fsCurrent = document.getElementById('fs-current');
+    const fsPrev = document.getElementById('fs-prev');
+    const fsNext = document.getElementById('fs-next');
+    const fsOverlay = document.getElementById('fs-overlay');
+    const fsProgress = document.getElementById('fs-progress-fill');
+    const fsTime = document.getElementById('fs-time');
+
+    if (fsCurrent) {
+      if (sub) {
+        fsCurrent.innerHTML = this._escapeHtml(sub.text).replace(/\n/g, '<br>');
+        const prev = this.manager.getPrev(sub.id);
+        if (fsPrev) fsPrev.textContent = prev ? prev.text.replace(/\n/g, ' ') : '';
+        const next = this.manager.getNext(sub.id);
+        if (fsNext) fsNext.textContent = next ? next.text.replace(/\n/g, ' ') : '';
+      } else {
+        fsCurrent.textContent = '';
+        if (fsPrev) fsPrev.textContent = '';
+        const allSubs = this.manager.getAll();
+        const nextSub = allSubs.find(s => s.layer === 0 && s.startTime > currentTimeMs);
+        if (fsNext) fsNext.textContent = nextSub ? nextSub.text.replace(/\n/g, ' ') : '';
+      }
+    }
+
+    if (fsOverlay) {
+      if (overlaySub) {
+        fsOverlay.innerHTML = this._escapeHtml(overlaySub.text).replace(/\n/g, '<br>');
+        fsOverlay.style.display = 'block';
+        fsOverlay.style.opacity = '0.85';
+      } else {
+        const allSubs = this.manager.getAll();
+        const nextOverlay = allSubs.find(s => s.layer === 1 && s.startTime > currentTimeMs);
+        if (nextOverlay) {
+          fsOverlay.innerHTML = this._escapeHtml(nextOverlay.text).replace(/\n/g, '<br>');
+          fsOverlay.style.display = 'block';
+          fsOverlay.style.opacity = '0.3';
+        } else {
+          fsOverlay.textContent = '';
+          fsOverlay.style.display = 'none';
+        }
+      }
+    }
+
+    // Update progress bar
+    if (fsProgress && this.engine.isReady) {
+      const duration = this.engine.getDuration();
+      if (duration > 0) {
+        fsProgress.style.width = `${(currentTimeMs / 1000 / duration) * 100}%`;
+      }
+    }
+    if (fsTime && this.engine.isReady) {
+      const totalMs = this.engine.getDuration() * 1000;
+      fsTime.textContent = `${msToDisplay(currentTimeMs)} / ${msToDisplay(totalMs)}`;
     }
   }
 
@@ -400,11 +518,18 @@ export class SubtitleUI {
       const sub = subs[i];
       const isOverlap = overlapIndices.has(i);
       const isActive = sub.id === this.selectedId;
-      let color = 'rgba(255, 215, 0, 0.18)';
-      if (isOverlap) color = 'rgba(239, 68, 68, 0.3)';
-      if (isActive) color = 'rgba(255, 215, 0, 0.42)';
+      const isOverlay = sub.layer === 1;
 
-      this.engine.addRegion(sub.id, sub.startTime / 1000, sub.endTime / 1000, sub.text, color);
+      let color;
+      if (isOverlay) {
+        color = isActive ? 'rgba(200, 200, 200, 0.42)' : 'rgba(200, 200, 200, 0.18)';
+      } else {
+        color = 'rgba(255, 215, 0, 0.18)';
+        if (isOverlap) color = 'rgba(239, 68, 68, 0.3)';
+        if (isActive) color = 'rgba(255, 215, 0, 0.42)';
+      }
+
+      this.engine.addRegion(sub.id, sub.startTime / 1000, sub.endTime / 1000, sub.text, color, sub.layer);
     }
   }
 

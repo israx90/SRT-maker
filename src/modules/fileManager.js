@@ -1,14 +1,16 @@
 /**
  * File Manager
- * Handles file import/export for audio and SRT files
+ * Handles file import/export for audio, SRT, and .lyric files
  */
 
 import { parseSRT, serializeSRT } from './srtParser.js';
+import { parseLyric, serializeLyric } from './lyricParser.js';
 
 export class FileManager {
   constructor() {
     this.onAudioLoaded = null;
     this.onSRTLoaded = null;
+    this.onLyricLoaded = null;
     this.currentFileName = '';
   }
 
@@ -68,6 +70,27 @@ export class FileManager {
   }
 
   /**
+   * Open file picker for .lyric files
+   */
+  openLyricPicker() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.lyric,.srt,.txt';
+    input.onchange = (e) => {
+      if (e.target.files.length > 0) {
+        const file = e.target.files[0];
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (ext === 'lyric') {
+          this._handleLyricFile(file);
+        } else {
+          this._handleSRTFile(file);
+        }
+      }
+    };
+    input.click();
+  }
+
+  /**
    * Handle dropped files by type detection
    */
   _handleFiles(files) {
@@ -75,6 +98,8 @@ export class FileManager {
       const ext = file.name.split('.').pop().toLowerCase();
       if (['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'webm'].includes(ext)) {
         this._handleAudioFile(file);
+      } else if (ext === 'lyric') {
+        this._handleLyricFile(file);
       } else if (['srt', 'txt'].includes(ext)) {
         this._handleSRTFile(file);
       }
@@ -103,7 +128,23 @@ export class FileManager {
   }
 
   /**
-   * Export subtitles as SRT file
+   * Process .lyric file
+   */
+  async _handleLyricFile(file) {
+    try {
+      const text = await file.text();
+      const result = parseLyric(text);
+      this.currentFileName = file.name.replace(/\.[^/.]+$/, '');
+      if (this.onLyricLoaded) {
+        this.onLyricLoaded(result);
+      }
+    } catch (err) {
+      console.error('Error parsing .lyric file:', err);
+    }
+  }
+
+  /**
+   * Export subtitles as SRT file (compatibility)
    */
   exportSRT(subtitles, filename) {
     const srtContent = serializeSRT(subtitles);
@@ -119,21 +160,15 @@ export class FileManager {
   }
 
   /**
-   * Save project as JSON (audio name + subtitles)
+   * Export as .lyric file (native format)
    */
-  saveProject(subtitles, metadata) {
-    const project = {
-      version: '1.0',
-      audioFile: this.currentFileName,
-      metadata: metadata || {},
-      subtitles: subtitles,
-      savedAt: new Date().toISOString()
-    };
-    const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
+  exportLyric(subtitles, sections, filename) {
+    const lyricContent = serializeLyric(subtitles, sections);
+    const blob = new Blob([lyricContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${this.currentFileName || 'project'}.srt-project.json`;
+    a.download = filename || `${this.currentFileName || 'project'}.lyric`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -141,23 +176,38 @@ export class FileManager {
   }
 
   /**
-   * Load project from JSON
+   * Save project as .lyric (replaces old JSON project save)
+   */
+  saveProject(subtitles, sections) {
+    this.exportLyric(subtitles, sections);
+  }
+
+  /**
+   * Load project — accepts .lyric or legacy .json
    */
   openProjectPicker() {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json';
+    input.accept = '.lyric,.json';
     input.onchange = async (e) => {
       if (e.target.files.length > 0) {
-        try {
-          const text = await e.target.files[0].text();
-          const project = JSON.parse(text);
-          if (project.subtitles && this.onSRTLoaded) {
-            this.currentFileName = project.audioFile || '';
-            this.onSRTLoaded(project.subtitles, project.audioFile);
+        const file = e.target.files[0];
+        const ext = file.name.split('.').pop().toLowerCase();
+
+        if (ext === 'lyric') {
+          this._handleLyricFile(file);
+        } else if (ext === 'json') {
+          // Legacy JSON project support
+          try {
+            const text = await file.text();
+            const project = JSON.parse(text);
+            if (project.subtitles && this.onSRTLoaded) {
+              this.currentFileName = project.audioFile || '';
+              this.onSRTLoaded(project.subtitles, project.audioFile);
+            }
+          } catch (err) {
+            console.error('Error loading legacy project:', err);
           }
-        } catch (err) {
-          console.error('Error loading project:', err);
         }
       }
     };

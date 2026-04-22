@@ -1,71 +1,75 @@
 /* ========================================
-   SRT Lyrics Studio — Premium Dark Theme
+   SRT Lyrics Studio — Flat Dark Theme
+   Palette: #000000 base | #fbba16 accent | #ffffff key text
    ======================================== */
 
 /* --- CSS Custom Properties --- */
 :root {
   color-scheme: dark;
-  scrollbar-color: #ffd700 #000;
+  scrollbar-color: #fbba16 #000;
   scrollbar-width: thin;
+
   /* Base palette */
-  --bg-deep: #000000;
-  --bg-primary: #050505;
-  --bg-secondary: #0a0a0a;
-  --bg-tertiary: #111111;
-  --bg-elevated: #1a1a1a;
-  --bg-hover: #222222;
-  
+  --bg-deep:      #000000;
+  --bg-primary:   #080808;
+  --bg-secondary: #0d0d0d;
+  --bg-tertiary:  #141414;
+  --bg-elevated:  #1c1c1c;
+  --bg-hover:     #242424;
+
   /* Text */
-  --text-primary: #e8edf5;
-  --text-secondary: #94a3b8;
-  --text-tertiary: #64748b;
-  --text-muted: #475569;
-  
-  /* Accent colors */
-  --accent-gold: #ffd700;
-  --accent-yellow: #ffff00;
-  --accent-amber: #d97706;
-  --accent-blue: #ffd700; /* mapped to gold */
-  --accent-cyan: #ffff00; /* mapped to yellow */
-  --accent-purple: #ffea00;
-  --accent-pink: #ffd700;
-  --accent-green: #10b981;
-  --accent-orange: #ffd700;
-  --accent-red: #ef4444;
-  
-  /* Gradients */
-  --gradient-primary: linear-gradient(135deg, #ffd700, #ffff00);
-  --gradient-accent: linear-gradient(135deg, #ffff00, #d97706);
-  --gradient-warm: linear-gradient(135deg, #ffd700, #ffea00);
-  --gradient-glow: radial-gradient(ellipse at center, rgba(251, 191, 36, 0.15) 0%, transparent 70%);
-  
+  --text-primary:   #ffffff;
+  --text-secondary: #b0b0b0;
+  --text-tertiary:  #666666;
+  --text-muted:     #444444;
+
+  /* Accent — single source of truth */
+  --accent:        #fbba16;
+  --accent-dim:    rgba(251, 186, 22, 0.15);
+  --accent-border: rgba(251, 186, 22, 0.3);
+
+  /* Keep aliases for legacy code in modules */
+  --accent-gold:   #fbba16;
+  --accent-yellow: #fbba16;
+  --accent-amber:  #fbba16;
+  --accent-blue:   #fbba16;
+  --accent-cyan:   #fbba16;
+  --accent-purple: #fbba16;
+  --accent-pink:   #fbba16;
+  --accent-orange: #fbba16;
+  --accent-green:  #22c55e;
+  --accent-red:    #ef4444;
+
+  /* Overlay layer color */
+  --overlay-color: #ffffff;
+  --overlay-dim:   rgba(59, 158, 255, 0.15);
+
   /* Glass */
-  --glass-bg: rgba(26, 26, 16, 0.8);
-  --glass-border: rgba(245, 158, 11, 0.12);
-  --glass-border-hover: rgba(245, 158, 11, 0.25);
-  
+  --glass-bg:           rgba(14, 14, 14, 0.92);
+  --glass-border:       rgba(251, 186, 22, 0.1);
+  --glass-border-hover: rgba(251, 186, 22, 0.22);
+
   /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
-  --shadow-glow: 0 0 20px rgba(251, 191, 36, 0.15);
-  
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.5);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.6);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.7);
+  --shadow-glow: 0 0 16px rgba(251, 186, 22, 0.18);
+
   /* Borders */
   --border-subtle: 1px solid rgba(255,255,255,0.06);
-  --border-light: 1px solid rgba(255,255,255,0.1);
-  --border-accent: 1px solid rgba(245, 158, 11, 0.3);
-  
+  --border-light:  1px solid rgba(255,255,255,0.1);
+
   /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  
+  --radius-sm: 5px;
+  --radius-md: 9px;
+  --radius-lg: 14px;
+  --radius-xl: 22px;
+
   /* Transitions */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
-  
+  --transition-fast: 130ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 380ms cubic-bezier(0.4, 0, 0.2, 1);
+
   /* Typography */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
@@ -87,7 +91,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color-scheme: dark;
-  scrollbar-color: #ffd700 #000;
+  scrollbar-color: #fbba16 #000;
   scrollbar-width: thin;
 }
 
@@ -101,18 +105,18 @@ body {
   flex-direction: column;
   overflow: hidden;
   color-scheme: dark;
-  scrollbar-color: #ffd700 #000;
+  scrollbar-color: #fbba16 #000;
   scrollbar-width: thin;
 }
 
 ::selection {
-  background: rgba(255, 215, 0, 0.4);
+  background: rgba(251, 186, 22, 0.4);
   color: #000;
 }
 
 /* WaveSurfer parts */
 #waveform ::part(scroll) {
-  scrollbar-color: #ffd700 #000 !important;
+  scrollbar-color: #fbba16 #000 !important;
   scrollbar-width: thin !important;
 }
 
@@ -125,7 +129,7 @@ body {
 }
 
 #waveform ::part(scroll)::-webkit-scrollbar-thumb {
-  background: rgba(255, 215, 0, 0.4) !important;
+  background: rgba(251, 186, 22, 0.4) !important;
   border-radius: 4px !important;
   border: 2px solid #000 !important;
 }
@@ -138,18 +142,18 @@ body {
   background: #000 !important;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 215, 0, 0.4) !important;
+  background: rgba(251, 186, 22, 0.35) !important;
   border-radius: 4px;
   border: 2px solid #000 !important;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 0, 0.8) !important;
+  background: #fbba16 !important;
 }
 
 /* Region styling (Waveform SRT Blocks) */
 .region {
-  border: 1px solid rgba(255, 215, 0, 0.6) !important;
-  border-radius: 4px !important;
+  border: 1px solid rgba(251, 186, 22, 0.5) !important;
+  border-radius: 3px !important;
   overflow: hidden !important;
   display: flex !important;
   align-items: center !important;
@@ -190,7 +194,7 @@ body {
 }
 .btn-lang.active {
   color: var(--accent-gold);
-  background: rgba(255, 215, 0, 0.1);
+  background: rgba(251, 186, 22, 0.1);
 }
 .lang-sep {
   color: var(--text-muted);
@@ -204,7 +208,7 @@ body {
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--accent-gold);
-  text-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+  text-shadow: 0 0 15px rgba(251, 186, 22, 0.3);
 }
 
 /* --- Headers --- */
@@ -266,10 +270,7 @@ h1, h2, h3 {
   font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.3px;
-  background: var(--gradient-accent);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #fbba16;
   line-height: 1.2;
 }
 
@@ -289,16 +290,16 @@ h1, h2, h3 {
   align-items: center;
   gap: 8px;
   padding: 6px 14px;
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.15);
+  background: rgba(251, 186, 22, 0.08);
+  border: 1px solid rgba(251, 186, 22, 0.15);
   border-radius: var(--radius-lg);
   font-family: var(--font-mono);
   transition: var(--transition-base);
 }
 
 .bpm-display:hover {
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.25);
+  background: rgba(251, 186, 22, 0.12);
+  border-color: rgba(251, 186, 22, 0.25);
 }
 
 .bpm-label {
@@ -350,13 +351,14 @@ h1, h2, h3 {
 }
 
 .btn-primary {
-  background: var(--gradient-primary);
+  background: #fbba16;
   color: #000;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 2px 8px rgba(251, 186, 22, 0.25);
 }
 .btn-primary:hover {
-  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.6);
+  background: #ffd04d;
+  box-shadow: 0 4px 16px rgba(251, 186, 22, 0.4);
   transform: translateY(-1px);
 }
 
@@ -411,7 +413,7 @@ h1, h2, h3 {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(245, 158, 11, 0.12);
+  background: rgba(251, 186, 22, 0.08);
   backdrop-filter: blur(10px);
   display: none;
   align-items: center;
@@ -424,12 +426,12 @@ h1, h2, h3 {
 .drop-zone-content {
   text-align: center;
   padding: 60px;
-  border: 2px dashed var(--accent-color);
+  border: 2px dashed var(--accent);
   border-radius: var(--radius-xl);
   animation: dropPulse 2s ease-in-out infinite;
 }
 .drop-zone-content svg {
-  color: var(--accent-cyan);
+  color: var(--accent);
   margin-bottom: 16px;
 }
 .drop-zone-content p {
@@ -443,8 +445,8 @@ h1, h2, h3 {
 }
 
 @keyframes dropPulse {
-  0%, 100% { border-color: var(--accent-cyan); }
-  50% { border-color: var(--accent-color); }
+  0%, 100% { border-color: rgba(251, 186, 22, 0.6); }
+  50% { border-color: rgba(251, 186, 22, 1); }
 }
 
 /* --- Main Layout --- */
@@ -480,10 +482,7 @@ h1, h2, h3 {
   font-size: 26px;
   font-weight: 700;
   margin-bottom: 8px;
-  background: var(--gradient-accent);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #fbba16;
 }
 
 .welcome-content p {
@@ -529,7 +528,7 @@ h1, h2, h3 {
   position: relative;
   height: 36px;
   background: #0a0a0a;
-  border-bottom: 1px solid rgba(255,215,0,0.2);
+  border-bottom: 1px solid rgba(251,186,22,0.2);
   overflow: hidden;
   cursor: crosshair;
   user-select: none;
@@ -547,10 +546,10 @@ h1, h2, h3 {
   position: absolute;
   height: 100%;
   top: 0;
-  background: rgba(255,215,0,0.15);
-  border-left: 2px solid #ffd700;
-  border-right: 2px solid #ffd700;
-  border-top: 2px solid #ffd700;
+  background: rgba(251,186,22,0.12);
+  border-left: 2px solid #fbba16;
+  border-right: 2px solid #fbba16;
+  border-top: 2px solid #fbba16;
   display: flex;
   align-items: center;
   padding: 0 6px;
@@ -566,7 +565,7 @@ h1, h2, h3 {
 .section-strip-block-label {
   font-size: 10px;
   font-weight: 700;
-  color: #ffd700;
+  color: #fbba16;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -580,7 +579,7 @@ h1, h2, h3 {
   width: 8px;
   height: 100%;
   cursor: ew-resize;
-  background: rgba(255,215,0,0.3);
+  background: rgba(251,186,22,0.25);
   opacity: 0;
   transition: opacity 0.15s;
 }
@@ -611,8 +610,9 @@ h1, h2, h3 {
   border-top: var(--border-subtle);
   border-bottom: var(--border-subtle);
   padding: 10px 16px;
-  min-height: 44px;
+  min-height: 80px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   position: relative;
@@ -641,6 +641,7 @@ h1, h2, h3 {
 }
 
 .karaoke-prev {
+  flex: 1;
   color: var(--text-muted);
   font-size: 13px;
   opacity: 0.6;
@@ -648,18 +649,16 @@ h1, h2, h3 {
 }
 
 .karaoke-current {
-  color: var(--text-primary);
+  flex: 0 0 auto;
+  color: #fbba16;
   font-size: 16px;
-  font-weight: 600;
-  text-shadow: var(--shadow-glow-accent);
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-weight: 700;
+  text-align: center;
   transform: scale(1.05);
 }
 
 .karaoke-next {
+  flex: 1;
   color: var(--text-tertiary);
   font-size: 13px;
   opacity: 0.6;
@@ -705,14 +704,14 @@ h1, h2, h3 {
 .btn-transport.btn-play {
   width: 44px;
   height: 44px;
-  background: var(--gradient-primary);
+  background: #fbba16;
   color: #000;
   font-weight: 700;
   border: none;
-  box-shadow: 0 2px 12px rgba(255,215,0,0.4);
+  box-shadow: 0 2px 12px rgba(251,186,22,0.35);
 }
 .btn-transport.btn-play:hover {
-  box-shadow: 0 4px 20px rgba(255,215,0,0.6);
+  box-shadow: 0 4px 20px rgba(251,186,22,0.5);
   transform: scale(1.05);
 }
 
@@ -945,8 +944,8 @@ h1, h2, h3 {
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
-  color: var(--accent-purple);
-  background: rgba(245, 158, 11, 0.1);
+  color: var(--accent);
+  background: rgba(251, 186, 22, 0.1);
   padding: 1px 6px;
   border-radius: 3px;
 }
@@ -1054,8 +1053,8 @@ h1, h2, h3 {
 
 .editor-field textarea:focus,
 .editor-field input[type="text"]:focus {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(251, 186, 22, 0.1);
 }
 
 .editor-field textarea {
@@ -1089,17 +1088,17 @@ h1, h2, h3 {
   flex-shrink: 0;
   background: var(--bg-elevated);
   border-radius: var(--radius-sm);
-  color: var(--accent-cyan);
+  color: var(--accent);
 }
 .time-input-group .btn-icon:hover {
-  background: rgba(251, 191, 36, 0.15);
+  background: rgba(251, 186, 22, 0.15);
 }
 
 .duration-display {
   font-family: var(--font-mono);
   font-size: 16px;
   font-weight: 600;
-  color: var(--accent-cyan);
+  color: var(--accent);
   padding-top: 8px;
 }
 
@@ -1194,8 +1193,8 @@ h1, h2, h3 {
 .modal-info {
   font-size: 12px;
   color: var(--text-secondary);
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.15);
+  background: rgba(251, 186, 22, 0.06);
+  border: 1px solid rgba(251, 186, 22, 0.15);
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   margin-bottom: 16px;
@@ -1314,7 +1313,7 @@ h1, h2, h3 {
   border-radius: 4px;
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--accent-cyan);
+  color: var(--accent);
 }
 
 .shortcut-item span {
@@ -1383,20 +1382,20 @@ h1, h2, h3 {
 
 /* --- Wavesurfer Region content styles --- */
 [data-id^="sub-"] {
-  background-color: rgba(255, 215, 0, 0.15) !important;
-  border-left: 2px solid #ffd700 !important;
-  border-radius: 3px;
+  background-color: rgba(251, 186, 22, 0.12) !important;
+  border-left: 2px solid #fbba16 !important;
+  border-radius: 2px;
   transition: background-color var(--transition-fast);
   height: 80% !important;
   top: 10% !important;
-  color: #ffd700;
+  color: #fbba16;
   font-size: 10px;
   padding: 4px;
 }
 
 [data-id^="sub-"].active {
-  background-color: rgba(255, 255, 0, 0.3) !important;
-  border-left: 3px solid #ffff00 !important;
+  background-color: rgba(251, 186, 22, 0.28) !important;
+  border-left: 3px solid #fbba16 !important;
 }
 
 /* Section regions hidden from waveform — managed by sections-strip instead */
@@ -1482,7 +1481,7 @@ body.drag-over::after {
   position: fixed;
   inset: 0;
   z-index: 9998;
-  border: 3px dashed var(--accent-cyan);
+  border: 3px dashed var(--accent);
   border-radius: 0;
   pointer-events: none;
   animation: dropPulse 1.5s ease-in-out infinite;
@@ -1501,7 +1500,7 @@ body.drag-over::after {
   width: 16px;
   height: 16px;
   border: 2px solid var(--bg-elevated);
-  border-top-color: var(--accent-cyan);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
@@ -1531,9 +1530,9 @@ body.drag-over::after {
 }
 
 .quick-input-inner:focus-within {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1), 0 0 20px rgba(6, 182, 212, 0.05);
-  background: rgba(6, 182, 212, 0.03);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(251, 186, 22, 0.1);
+  background: rgba(251, 186, 22, 0.03);
 }
 
 .quick-input-icon {
@@ -1689,8 +1688,8 @@ body.drag-over::after {
 }
 
 .section-chip-copy:hover {
-  color: var(--accent-cyan);
-  background: rgba(251, 191, 36, 0.1);
+  color: var(--accent);
+  background: rgba(251, 186, 22, 0.1);
 }
 
 .section-chip-delete:hover {
@@ -1705,9 +1704,9 @@ body.drag-over::after {
 }
 
 .btn-add-section:hover {
-  border-color: var(--accent-cyan) !important;
-  color: var(--accent-cyan) !important;
-  background: rgba(6, 182, 212, 0.05) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  background: rgba(251, 186, 22, 0.05) !important;
 }
 
 /* ========================================
@@ -1752,11 +1751,11 @@ body.drag-over::after {
 }
 
 .btn-duplicate-sub {
-  color: var(--accent-cyan) !important;
+  color: var(--accent) !important;
 }
 
 .btn-duplicate-sub:hover {
-  background: rgba(251, 191, 36, 0.1) !important;
+  background: rgba(251, 186, 22, 0.1) !important;
 }
 
 /* ========================================
@@ -1765,7 +1764,7 @@ body.drag-over::after {
 .inline-edit-area {
   width: 100%;
   background: var(--bg-tertiary);
-  border: 1px solid var(--accent-cyan);
+  border: 1px solid var(--accent);
   border-radius: 4px;
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -1774,7 +1773,7 @@ body.drag-over::after {
   outline: none;
   resize: none;
   line-height: 1.5;
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
+  box-shadow: 0 0 0 3px rgba(251, 186, 22, 0.1);
 }
 
 /* ========================================
@@ -1806,8 +1805,8 @@ body.drag-over::after {
 }
 
 .section-time-range .time-input-group input:focus {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(251, 186, 22, 0.1);
 }
 
 .time-label-sm {
@@ -1830,7 +1829,7 @@ body.drag-over::after {
   flex-shrink: 0;
   background: var(--bg-elevated);
   border-radius: var(--radius-sm);
-  color: var(--accent-cyan);
+  color: var(--accent);
   margin-bottom: 2px;
 }
 
@@ -1847,8 +1846,8 @@ body.drag-over::after {
 }
 
 .form-group input[type="text"]:focus {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(251, 186, 22, 0.1);
 }
 
 /* ========================================
@@ -1868,13 +1867,13 @@ body.drag-over::after {
    NEW: Magnetic Snap Toggle
    ======================================== */
 .btn-tool.active {
-  background: rgba(6, 182, 212, 0.12);
-  color: var(--accent-cyan);
-  border-color: rgba(251, 191, 36, 0.3);
+  background: rgba(251, 186, 22, 0.12);
+  color: var(--accent);
+  border-color: rgba(251, 186, 22, 0.3);
 }
 
 .btn-tool.active:hover {
-  background: rgba(6, 182, 212, 0.18);
+  background: rgba(251, 186, 22, 0.18);
 }
 
 /* ========================================
@@ -1889,4 +1888,303 @@ body.drag-over::after {
 
 [data-id^="section-"] [data-resize] {
   display: none !important;
+}
+
+/* ========================================
+   Overlay Layer Badge (in subtitle list)
+   ======================================== */
+.sub-layer-badge {
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--overlay-color);
+  background: var(--overlay-dim);
+  border: 1px solid rgba(59, 158, 255, 0.3);
+}
+
+.sub-item.overlay-item {
+  border-left: 3px solid rgba(255, 255, 255, 0.45);
+}
+
+.sub-item.overlay-item.active {
+  border-color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ========================================
+   Overlay Button
+   ======================================== */
+.btn-overlay {
+  color: var(--overlay-color) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+.btn-overlay:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* ========================================
+   Karaoke Overlay Line
+   ======================================== */
+.karaoke-overlay-line {
+  text-align: center;
+  font-size: 8px; /* 50% of 16px */
+  font-weight: 500;
+  color: var(--overlay-color);
+  opacity: 0.85;
+  line-height: 1.4;
+  margin-top: 4px; /* Positive margin to prevent overlap */
+}
+
+/* ========================================
+   Editor Layer Row
+   ======================================== */
+.editor-layer-row {
+  margin-bottom: 14px;
+}
+
+.editor-layer-row select {
+  width: 100%;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+
+.editor-layer-row select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(251, 186, 22, 0.1);
+}
+
+/* ========================================
+   Section Chip Snap Button
+   ======================================== */
+.section-chip-snap {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  transition: var(--transition-fast);
+  line-height: 1;
+}
+
+.section-chip-snap:hover {
+  color: var(--accent);
+  background: rgba(251, 186, 22, 0.15);
+}
+
+/* ========================================
+   Fullscreen Karaoke Player
+   ======================================== */
+.fullscreen-player {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+/* Close button */
+.fs-close-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 10001;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.fs-close-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: scale(1.1);
+}
+
+/* Karaoke container */
+.fs-karaoke-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 20px;
+  max-width: 85%;
+  flex: 1;
+  padding: 60px 40px;
+}
+
+.fs-prev {
+  font-size: 22px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.2);
+  line-height: 1.4;
+  transition: all 0.3s ease;
+  min-height: 34px;
+}
+
+.fs-current {
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #fbba16;
+  transition: all 0.3s ease;
+  min-height: 66px;
+  animation: fsTextPulse 3s ease-in-out infinite;
+}
+
+@keyframes fsTextPulse {
+  0%, 100% { opacity: 1; text-shadow: 0 0 30px rgba(251, 186, 22, 0.3); }
+  50% { opacity: 0.92; text-shadow: 0 0 50px rgba(251, 186, 22, 0.5); }
+}
+
+.fs-overlay {
+  font-size: 26px; /* 50% of 52px */
+  font-weight: 500;
+  color: var(--overlay-color);
+  opacity: 0.9;
+  line-height: 1.3;
+  transition: all 0.3s ease;
+}
+
+.fs-next {
+  font-size: 22px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.15);
+  line-height: 1.4;
+  transition: all 0.3s ease;
+  min-height: 34px;
+}
+
+/* Controls */
+.fs-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 40px;
+  width: 100%;
+  max-width: 800px;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.fullscreen-player:hover .fs-controls {
+  opacity: 1;
+}
+
+.fs-play-btn {
+  background: rgba(251, 186, 22, 0.12);
+  border: 1px solid rgba(251, 186, 22, 0.3);
+  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fbba16;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.fs-play-btn:hover {
+  background: rgba(251, 186, 22, 0.22);
+  border-color: rgba(251, 186, 22, 0.5);
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(251, 186, 22, 0.25);
+}
+
+.fs-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.fs-progress-fill {
+  height: 100%;
+  background: #fbba16;
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.1s linear;
+}
+
+.fs-time {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  min-width: 120px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ========================================
+   Overlay Region Waveform Styling
+   ======================================== */
+/* Overlay regions on waveform have a cyan tint */
+
+/* ========================================
+   Section Color Indicator on Subtitle Items
+   ======================================== */
+.sub-item.has-section {
+  border-left: 3px solid var(--section-color, #fbba16) !important;
+  padding-left: 9px;
+}
+
+.sub-item.has-section .sub-section-chip {
+  font-size: 8px;
+  font-weight: 800;
+  padding: 1px 5px;
+}
+
+/* When active + has-section, glow with section color */
+.sub-item.has-section.active {
+  box-shadow: -2px 0 12px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.04);
+  border-left-width: 4px !important;
+}
+
+/* ========================================
+   Overlay Layer — Premiere-style indicator
+   ======================================== */
+/* The overlay region sits visually in the lower half of the waveform */
+[data-id^="sub-"].overlay-region {
+  top: 55% !important;
+  height: 40% !important;
+  background-color: rgba(59, 158, 255, 0.14) !important;
+  border-left: 2px solid #3b9eff !important;
+  border-radius: 2px;
+}
+
+[data-id^="sub-"].overlay-region.active {
+  background-color: rgba(59, 158, 255, 0.3) !important;
+  border-left: 3px solid #3b9eff !important;
 }
