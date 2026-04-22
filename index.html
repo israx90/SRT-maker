@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Editor profesional de letras y subtítulos con visualización de audio waveform, secciones musicales y formato nativo .lyric" />
+  <title>IRXs Lyric Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'><style>.cls-1{fill:%23fbba16;}.cls-2{fill:%23fff;}</style><g><polygon class='cls-2' points='24.34 22.44 30 22.45 30 30 22.45 30 15 20.05 7.54 30 0 30 0 22.45 5.65 22.45 11.22 15 5.65 7.55 0 7.55 0 0 7.54 0 24.34 22.44'/><rect class='cls-1' x='17.19' y='8.57' width='4.31' height='4.31'/><rect class='cls-1' x='21.5' y='3.33' width='5.24' height='5.24'/><rect class='cls-1' x='26.74' y='.07' width='3.26' height='3.26'/><rect class='cls-1' x='21.5' y='12.84' width='3.3' height='3.3'/></g></svg>">
+  <script type="module" crossorigin src="/SRT-maker/assets/index-DQ5Kh6Nb.js"></script>
+  <link rel="stylesheet" crossorigin href="/SRT-maker/assets/index-DgDiGBZj.css">
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header id="app-header">
+    <div class="header-left">
+      <div class="logo">
+        <div class="logo-icon">
+          <!-- 4-square pixel brand icon -->
+          <svg width="28" height="28" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+            <style>
+              .cls-1 { fill: #fbba16; }
+              .cls-2 { fill: #fff; }
+            </style>
+            <g>
+              <polygon class="cls-2" points="24.34 22.44 30 22.45 30 30 22.45 30 15 20.05 7.54 30 0 30 0 22.45 5.65 22.45 11.22 15 5.65 7.55 0 7.55 0 0 7.54 0 24.34 22.44"/>
+              <rect class="cls-1" x="17.19" y="8.57" width="4.31" height="4.31"/>
+              <rect class="cls-1" x="21.5" y="3.33" width="5.24" height="5.24"/>
+              <rect class="cls-1" x="26.74" y=".07" width="3.26" height="3.26"/>
+              <rect class="cls-1" x="21.5" y="12.84" width="3.3" height="3.3"/>
+            </g>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1 data-t="app_title">IRXs Lyric Studio</h1>
+          <span class="logo-subtitle" id="file-name-display" data-t="karaoke_empty">Sin archivo cargado</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="bpm-display" id="bpm-display" title="BPM detectado">
+        <span class="bpm-label">BPM</span>
+        <span class="bpm-value" id="bpm-value">—</span>
+        <span class="bpm-confidence" id="bpm-confidence"></span>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-ghost" id="btn-import-audio" data-t-title="btn_audio">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span data-t="btn_audio">Audio</span>
+      </button>
+      <button class="btn btn-ghost" id="btn-import-srt" data-t-title="btn_import_lyric">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span data-t="btn_import_lyric">Importar</span>
+      </button>
+      <button class="btn btn-primary" id="btn-export-srt" data-t-title="btn_export_lyric">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span data-t="btn_export_lyric">Exportar .lyric</span>
+      </button>
+      <button class="btn btn-ghost" id="btn-export-srt-compat" data-t-title="btn_export_srt">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span data-t="btn_export_srt">Exportar .srt</span>
+      </button>
+      <div class="header-divider"></div>
+      <button class="btn btn-ghost btn-icon-only" id="btn-save-project" data-t-title="btn_save">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      </button>
+      <button class="btn btn-ghost btn-icon-only" id="btn-load-project" data-t-title="btn_load">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+      </button>
+      <div class="header-divider"></div>
+      <div class="lang-toggle">
+        <button class="btn-lang" id="btn-lang-es">ES</button>
+        <span class="lang-sep">|</span>
+        <button class="btn-lang" id="btn-lang-en">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== DROP ZONE OVERLAY ===== -->
+  <div id="drop-zone" class="drop-zone">
+    <div class="drop-zone-content">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.6">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <p data-t="drop_zone_text">Arrastra un archivo de audio o .lyric aquí</p>
+      <span>MP3, WAV, OGG, FLAC, M4A • LYRIC, SRT, TXT</span>
+    </div>
+  </div>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main id="app-main">
+
+    <!-- WAVEFORM SECTION -->
+    <section class="waveform-section" id="waveform-section">
+      <!-- Welcome screen (shown before audio loaded) -->
+      <div class="welcome-screen" id="welcome-screen">
+        <div class="welcome-content">
+          <div class="welcome-icon">
+            <svg width="72" height="72" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+              <style>
+                .cls-1 { fill: #fbba16; }
+                .cls-2 { fill: #fff; }
+              </style>
+              <g>
+                <polygon class="cls-2" points="24.34 22.44 30 22.45 30 30 22.45 30 15 20.05 7.54 30 0 30 0 22.45 5.65 22.45 11.22 15 5.65 7.55 0 7.55 0 0 7.54 0 24.34 22.44"/>
+                <rect class="cls-1" x="17.19" y="8.57" width="4.31" height="4.31"/>
+                <rect class="cls-1" x="21.5" y="3.33" width="5.24" height="5.24"/>
+                <rect class="cls-1" x="26.74" y=".07" width="3.26" height="3.26"/>
+                <rect class="cls-1" x="21.5" y="12.84" width="3.3" height="3.3"/>
+              </g>
+            </svg>
+          </div>
+          <h2 data-t="welcome_title">Bienvenido a IRXs Lyric Studio</h2>
+          <p data-t="welcome_subtitle">Carga un archivo de audio para comenzar a crear letras</p>
+          <button class="btn btn-primary btn-lg" id="btn-welcome-load">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span data-t="load_audio">Cargar Audio</span>
+          </button>
+          <p class="welcome-hint" data-t="drag_hint">O arrastra y suelta un archivo aquí</p>
+        </div>
+      </div>
+
+      <!-- Waveform area (hidden until audio loaded) -->
+      <div class="waveform-area" id="waveform-area" style="display:none;">
+        <div class="waveform-container">
+          <!-- Sections Strip: draggable section blocks above waveform -->
+          <div class="sections-strip" id="sections-strip">
+            <div class="sections-strip-ruler" id="sections-strip-ruler">
+              <!-- Section blocks rendered by JS -->
+            </div>
+          </div>
+          <div id="minimap"></div>
+          <div id="waveform"></div>
+          <div id="timeline"></div>
+        </div>
+        
+        <!-- Quick Lyrics Input -->
+        <div class="quick-input" id="quick-input">
+          <div class="quick-input-inner">
+            <div class="quick-input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </div>
+            <input type="text" id="quick-input-field" placeholder="Escribe la letra y presiona Enter para añadir..." autocomplete="off" />
+            <div class="quick-input-duration">
+              <label>Dur:</label>
+              <select id="quick-input-duration">
+                <option value="1000">1s</option>
+                <option value="2000" selected>2s</option>
+                <option value="3000">3s</option>
+                <option value="4000">4s</option>
+                <option value="5000">5s</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Karaoke Player Bar -->
+        <div class="karaoke-bar" id="karaoke-bar">
+          <div class="karaoke-track" id="karaoke-track">
+            <div class="karaoke-line karaoke-prev" id="karaoke-prev"></div>
+            <div class="karaoke-line karaoke-current" id="karaoke-current" data-t="karaoke_empty">Lyric Player...</div>
+            <div class="karaoke-line karaoke-next" id="karaoke-next"></div>
+          </div>
+          <div class="karaoke-overlay-line" id="karaoke-overlay" style="display:none"></div>
+        </div>
+        
+        <!-- Transport Controls -->
+        <div class="transport-bar">
+          <div class="transport-left">
+            <button class="btn-transport" id="btn-stop" data-t-title="btn_stop">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+            </button>
+            <button class="btn-transport btn-play" id="btn-play" data-t-title="btn_play">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" id="play-icon"><polygon points="5,3 19,12 5,21"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" id="pause-icon" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+            </button>
+            <div class="time-display" id="time-display">
+              <span id="current-time">00:00.000</span>
+              <span class="time-sep">/</span>
+              <span id="total-time">00:00.000</span>
+            </div>
+          </div>
+          <div class="transport-center">
+            <div class="transport-group">
+              <label data-t="speed">Velocidad</label>
+              <select id="speed-select">
+                <option value="0.25">0.25x</option>
+                <option value="0.5">0.5x</option>
+                <option value="0.75">0.75x</option>
+                <option value="1" selected>1x</option>
+                <option value="1.25">1.25x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+              </select>
+            </div>
+            <div class="transport-group">
+              <label data-t="zoom">Zoom</label>
+              <input type="range" id="zoom-slider" min="10" max="500" value="50" step="10" />
+            </div>
+          </div>
+          <div class="transport-right">
+            <div class="transport-group">
+              <button class="btn-full-frame" id="btn-full-frame" data-t-title="full_frame">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
+                <span data-t="full_frame">Full Frame</span>
+              </button>
+              <label data-t="volume">Volumen</label>
+              <input type="range" id="volume-slider" min="0" max="1" value="1" step="0.05" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTIONS + SUBTITLE PANEL SECTION -->
+    <section class="subtitle-section" id="subtitle-section">
+
+      <!-- Sections Bar -->
+      <div class="sections-bar" id="sections-bar">
+        <div class="sections-bar-left">
+          <span class="sections-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span data-t="label_sections">Secciones</span>
+          </span>
+          <div class="sections-chips" id="sections-chips">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+        <div class="sections-bar-right">
+          <button class="btn btn-sm btn-add-section" id="btn-add-section" data-t-title="btn_add_section">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span data-t="btn_add_section">Sección</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="subtitle-toolbar">
+        <div class="toolbar-left">
+          <button class="btn btn-sm btn-tool" id="btn-add-sub" data-t-title="btn_add">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span data-t="btn_add">Añadir</span>
+          </button>
+          <button class="btn btn-sm btn-tool btn-overlay" id="btn-add-overlay" title="Añadir overlay (capa 2)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="8" rx="2"/><rect x="3" y="13" width="18" height="8" rx="2" opacity="0.5"/></svg>
+            <span>Overlay</span>
+          </button>
+          <button class="btn btn-sm btn-tool" id="btn-fix-overlaps" data-t-title="btn_fix_overlaps">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span data-t="btn_fix_overlaps">Fix Overlaps</span>
+          </button>
+          <button class="btn btn-sm btn-tool" id="btn-auto-detect" data-t-title="btn_auto_detect">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            <span data-t="btn_auto_detect">Auto-detect</span>
+          </button>
+          <button class="btn btn-sm btn-tool" id="btn-snap-bpm" data-t-title="btn_snap_bpm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>
+            <span data-t="btn_snap_bpm">Snap BPM</span>
+          </button>
+          <button class="btn btn-sm btn-tool active" id="btn-magnetic-snap" data-t-title="btn_magnetic">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6H4z"/><path d="M14 14h6v6h-6z"/><line x1="10" y1="7" x2="14" y2="7"/><line x1="10" y1="17" x2="14" y2="17"/></svg>
+            <span data-t="btn_magnetic">Magnético</span>
+          </button>
+        </div>
+        <div class="toolbar-right">
+          <button class="btn btn-sm btn-tool" id="btn-undo" data-t-title="btn_undo">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+            <span data-t="btn_undo">Deshacer</span>
+          </button>
+          <span class="sub-count" id="sub-count">0 subtítulos</span>
+        </div>
+      </div>
+
+      <!-- Split panel: List + Editor -->
+      <div class="subtitle-panels">
+        <div class="panel-list" id="subtitle-list">
+          <div class="empty-list">
+            <div class="empty-icon" style="color: var(--text-muted); opacity: 0.5;">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </div>
+            <p>No hay subtítulos</p>
+            <p class="empty-hint">Carga un audio y presiona <kbd>Enter</kbd> durante la reproducción</p>
+          </div>
+        </div>
+        <div class="panel-editor" id="subtitle-editor">
+          <div class="editor-empty">
+            <p>Selecciona un subtítulo para editar</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== TOAST NOTIFICATIONS ===== -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- ===== ADD SECTION MODAL ===== -->
+  <div id="section-modal" class="modal" style="display:none">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3 id="section-modal-title">Añadir Sección</h3>
+        <button class="btn-icon modal-close" id="section-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="section-type" data-t="section_type">Tipo de sección</label>
+          <select id="section-type">
+            <option value="INTRO" data-t="sec_intro">Intro</option>
+            <option value="VERSO" data-t="sec_verso">Verso</option>
+            <option value="PRECORO" data-t="sec_precoro">Precoro</option>
+            <option value="CORO" selected data-t="sec_coro">Coro</option>
+            <option value="PUENTE" data-t="sec_puente">Puente</option>
+            <option value="OUTRO" data-t="sec_outro">Outro</option>
+            <option value="ADLIB" data-t="sec_adlib">Ad-lib</option>
+            <option value="CUSTOM" data-t="sec_custom">Custom</option>
+          </select>
+        </div>
+        <div class="form-group" id="section-custom-name-group" style="display:none">
+          <label for="section-custom-name" data-t="custom_name">Nombre personalizado</label>
+          <input type="text" id="section-custom-name" placeholder="Nombre de la sección..." />
+        </div>
+        <div class="form-group">
+          <label>Rango de tiempo</label>
+          <div class="section-time-range">
+            <div class="time-input-group">
+              <label class="time-label-sm">Desde</label>
+              <input type="text" id="section-start" placeholder="00:00.000" />
+              <button class="btn-icon btn-set-time" id="section-set-start" title="Usar tiempo actual">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+              </button>
+            </div>
+            <span class="time-range-arrow">→</span>
+            <div class="time-input-group">
+              <label class="time-label-sm">Hasta</label>
+              <input type="text" id="section-end" placeholder="00:00.000" />
+              <button class="btn-icon btn-set-time" id="section-set-end" title="Usar tiempo actual">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="section-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="section-save">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Añadir
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== COPY SECTION MODAL ===== -->
+  <div id="copy-section-modal" class="modal" style="display:none">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3>Copiar Sección</h3>
+        <button class="btn-icon modal-close" id="copy-section-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-info">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:text-bottom; margin-right:4px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          Copia todos los subtítulos de esta sección a otra posición temporal.
+        </p>
+        <div class="form-group">
+          <label>Sección a copiar</label>
+          <div class="copy-section-source" id="copy-section-source">—</div>
+        </div>
+        <div class="form-group">
+          <label for="copy-target-time">Pegar en el minuto</label>
+          <div class="time-input-group">
+            <input type="text" id="copy-target-time" placeholder="00:00.000" />
+            <button class="btn-icon btn-set-time" id="copy-set-target" title="Usar tiempo actual">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="copy-section-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="copy-section-confirm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copiar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SPEECH MODAL ===== -->
+  <div id="speech-modal" class="modal" style="display:none">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Auto-detección de voz</h3>
+        <button class="btn-icon modal-close" id="speech-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-info">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffd700" stroke-width="2" style="display:inline-block; vertical-align:text-bottom; margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          <strong>Experimental:</strong> Usa el micrófono del navegador para capturar el audio. Funciona solo en Chrome/Edge.
+        </p>
+        <div class="form-group">
+          <label for="speech-lang">Idioma de detección</label>
+          <select id="speech-lang">
+            <option value="es-ES">Español</option>
+            <option value="en-US">English (US)</option>
+            <option value="en-GB">English (UK)</option>
+            <option value="pt-BR">Português</option>
+            <option value="fr-FR">Français</option>
+          </select>
+        </div>
+        <div class="speech-status" id="speech-status">
+          <div class="speech-indicator"></div>
+          <span>Listo para iniciar</span>
+        </div>
+        <div class="speech-results" id="speech-results"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="speech-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="speech-start">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>
+          Iniciar Escucha
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== KEYBOARD SHORTCUTS HELP ===== -->
+  <div id="shortcuts-badge" class="shortcuts-badge" title="Ver atajos de teclado">
+    <kbd>?</kbd>
+  </div>
+  <div id="shortcuts-modal" class="modal" style="display:none">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3>Atajos de Teclado</h3>
+        <button class="btn-icon modal-close" id="shortcuts-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="shortcut-grid">
+          <div class="shortcut-item"><kbd>Espacio</kbd><span>Reproducir / Pausar</span></div>
+          <div class="shortcut-item"><kbd>Enter</kbd><span>Añadir subtítulo</span></div>
+          <div class="shortcut-item"><kbd>Delete</kbd><span>Eliminar seleccionado</span></div>
+          <div class="shortcut-item"><kbd>←</kbd><span>Retroceder 100ms</span></div>
+          <div class="shortcut-item"><kbd>→</kbd><span>Avanzar 100ms</span></div>
+          <div class="shortcut-item"><kbd>Shift+←</kbd><span>Retroceder 10ms</span></div>
+          <div class="shortcut-item"><kbd>Shift+→</kbd><span>Avanzar 10ms</span></div>
+          <div class="shortcut-item"><kbd>Tab</kbd><span>Siguiente subtítulo</span></div>
+          <div class="shortcut-item"><kbd>Shift+Tab</kbd><span>Subtítulo anterior</span></div>
+          <div class="shortcut-item"><kbd>Ctrl+S</kbd><span>Exportar SRT</span></div>
+          <div class="shortcut-item"><kbd>Ctrl+Z</kbd><span>Deshacer</span></div>
+          <div class="shortcut-item"><kbd>?</kbd><span>Mostrar atajos</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FULLSCREEN KARAOKE PLAYER ===== -->
+  <div id="fullscreen-player" class="fullscreen-player" style="display:none">
+    <button class="fs-close-btn" id="fs-close-btn" title="Cerrar (Esc)">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="fs-karaoke-container" id="fs-karaoke-container">
+      <div class="fs-prev" id="fs-prev"></div>
+      <div class="fs-current" id="fs-current"></div>
+      <div class="fs-overlay" id="fs-overlay" style="display:none"></div>
+      <div class="fs-next" id="fs-next"></div>
+    </div>
+    <div class="fs-controls">
+      <button class="fs-play-btn" id="fs-play-btn">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" id="fs-play-icon"><polygon points="5,3 19,12 5,21"/></svg>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" id="fs-pause-icon" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+      </button>
+      <div class="fs-progress-bar" id="fs-progress-bar">
+        <div class="fs-progress-fill" id="fs-progress-fill"></div>
+      </div>
+      <span class="fs-time" id="fs-time">00:00 / 00:00</span>
+    </div>
+  </div>
+
+</body>
+</html>
