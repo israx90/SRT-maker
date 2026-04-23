@@ -92,6 +92,7 @@ function setupFileManager() {
       subtitleManager.load([]);
       sectionManager.clear();
       
+      document.body.classList.add('app-ready');
       welcomeScreen.style.display = 'none';
       waveformArea.style.display = 'block';
       showToast('Audio cargado correctamente', 'success');
@@ -116,6 +117,9 @@ function setupFileManager() {
         sectionManager.update(added.id, { color: sec.color });
       }
     }
+    
+    document.body.classList.add('app-ready');
+    
     syncSectionMarkers();
     renderSectionsStrip();
     subtitleUI.syncRegions();

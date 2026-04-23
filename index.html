@@ -98,26 +98,18 @@
       <!-- Welcome screen (shown before audio loaded) -->
       <div class="welcome-screen" id="welcome-screen">
         <div class="welcome-content">
-          <div class="welcome-icon">
-            <svg width="72" height="72" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
-              <style>
-                .cls-1 { fill: #fbba16; }
-                .cls-2 { fill: #fff; }
-              </style>
-              <g>
-                <polygon class="cls-2" points="24.34 22.44 30 22.45 30 30 22.45 30 15 20.05 7.54 30 0 30 0 22.45 5.65 22.45 11.22 15 5.65 7.55 0 7.55 0 0 7.54 0 24.34 22.44"/>
-                <rect class="cls-1" x="17.19" y="8.57" width="4.31" height="4.31"/>
-                <rect class="cls-1" x="21.5" y="3.33" width="5.24" height="5.24"/>
-                <rect class="cls-1" x="26.74" y=".07" width="3.26" height="3.26"/>
-                <rect class="cls-1" x="21.5" y="12.84" width="3.3" height="3.3"/>
-              </g>
-            </svg>
-          </div>
-          <h2 data-t="welcome_title">Bienvenido a IRXs Lyric Studio</h2>
-          <p data-t="welcome_subtitle">Carga un archivo de audio para comenzar a crear letras</p>
-          <button class="btn btn-primary btn-lg" id="btn-welcome-load">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <span data-t="load_audio">Cargar Audio</span>
+          <button class="btn-welcome-cta" id="btn-welcome-load">
+            <div class="welcome-cta-icon">
+              <svg width="64" height="64" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+                <polygon fill="#ffffff" points="24.34 22.44 30 22.45 30 30 22.45 30 15 20.05 7.54 30 0 30 0 22.45 5.65 22.45 11.22 15 5.65 7.55 0 7.55 0 0 7.54 0 24.34 22.44"/>
+                <rect fill="#fbba16" x="17.19" y="8.57" width="4.31" height="4.31"/>
+                <rect fill="#fbba16" x="21.5" y="3.33" width="5.24" height="5.24"/>
+                <rect fill="#fbba16" x="26.74" y=".07" width="3.26" height="3.26"/>
+                <rect fill="#fbba16" x="21.5" y="12.84" width="3.3" height="3.3"/>
+              </svg>
+            </div>
+            <span class="welcome-cta-label" data-t="load_audio">Cargar Audio</span>
+            <span class="welcome-cta-formats">MP3 · WAV · OGG · FLAC · M4A</span>
           </button>
           <p class="welcome-hint" data-t="drag_hint">O arrastra y suelta un archivo aquí</p>
         </div>

@@ -122,6 +122,21 @@ body {
   scrollbar-width: thin;
 }
 
+/* Initial State Hiding */
+body:not(.app-ready) .header-center,
+body:not(.app-ready) #btn-import-audio,
+body:not(.app-ready) #btn-import-srt,
+body:not(.app-ready) #btn-export-srt,
+body:not(.app-ready) #btn-export-srt-compat,
+body:not(.app-ready) #btn-save-project,
+body:not(.app-ready) #btn-load-project,
+body:not(.app-ready) .header-divider:not(:last-child),
+body:not(.app-ready) #subtitle-section,
+body:not(.app-ready) .karaoke-bar,
+body:not(.app-ready) .transport-bar {
+  display: none !important;
+}
+
 ::selection {
   background: rgba(251, 186, 22, 0.4);
   color: #000;
@@ -462,6 +477,57 @@ h1, h2, h3 {
   50% { border-color: rgba(251, 186, 22, 1); }
 }
 
+/* ================================================
+   Progressive disclosure — hide UI until app-ready
+   ================================================ */
+
+/* Header action buttons: hidden until audio loads */
+#btn-import-srt,
+#btn-export-srt,
+#btn-export-srt-compat,
+#btn-save-project,
+#btn-load-project,
+.header-divider,
+.bpm-display {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+/* Subtitle section (bottom panel): hidden initially */
+.subtitle-section {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease 0.1s;
+}
+
+/* Reveal everything when audio is ready */
+body.app-ready #btn-import-srt,
+body.app-ready #btn-export-srt,
+body.app-ready #btn-export-srt-compat,
+body.app-ready #btn-save-project,
+body.app-ready #btn-load-project,
+body.app-ready .header-divider,
+body.app-ready .bpm-display {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+body.app-ready .subtitle-section {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Stagger header buttons slightly for a polished reveal */
+body.app-ready #btn-import-srt      { transition-delay: 0.05s; }
+body.app-ready #btn-export-srt      { transition-delay: 0.10s; }
+body.app-ready #btn-export-srt-compat { transition-delay: 0.13s; }
+body.app-ready #btn-save-project    { transition-delay: 0.17s; }
+body.app-ready #btn-load-project    { transition-delay: 0.20s; }
+body.app-ready .bpm-display         { transition-delay: 0.25s; }
+
 /* --- Main Layout --- */
 #app-main {
   flex: 1;
@@ -473,64 +539,142 @@ h1, h2, h3 {
 }
 
 /* --- Welcome Screen --- */
-.welcome-screen {
+
+/* Before audio loads, let the waveform section fill the whole content area */
+body:not(.app-ready) .waveform-section {
   flex: 1;
+}
+
+.welcome-screen {
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--gradient-glow);
+  background: radial-gradient(ellipse at 50% 50%,
+    rgba(251, 186, 22, 0.06) 0%,
+    rgba(251, 186, 22, 0.02) 40%,
+    transparent 70%);
 }
 
 .welcome-content {
-  text-align: center;
-  animation: fadeUp 0.6s ease-out;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.welcome-icon {
-  margin-bottom: 24px;
-  display: inline-flex;
+/* ── CTA button ─────────────────────────────── */
+.btn-welcome-cta {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 44px 60px;
+  background: rgba(251, 186, 22, 0.04);
+  border: 1px solid rgba(251, 186, 22, 0.18);
+  border-radius: 28px;
+  cursor: pointer;
+  animation: ctaBreathe 4s ease-in-out infinite;
+  transition: background 0.22s ease, border-color 0.22s ease, transform 0.18s ease;
+}
+
+/* Ripple rings that expand outward — like audio waves */
+.btn-welcome-cta::before,
+.btn-welcome-cta::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px solid rgba(251, 186, 22, 0.35);
+  animation: ctaRipple 3s ease-out infinite;
+  pointer-events: none;
+}
+.btn-welcome-cta::after {
+  animation-delay: 1.5s;
+}
+
+.btn-welcome-cta:hover {
+  background: rgba(251, 186, 22, 0.08);
+  border-color: rgba(251, 186, 22, 0.38);
+  transform: scale(1.025);
+  animation-play-state: paused;
+}
+.btn-welcome-cta:hover::before,
+.btn-welcome-cta:hover::after {
+  animation-play-state: paused;
+}
+.btn-welcome-cta:active {
+  transform: scale(0.98);
+}
+
+/* Icon circle */
+.welcome-cta-icon {
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
-  background: rgba(251, 186, 22, 0.05);
-  border: 1px solid rgba(251, 186, 22, 0.1);
-  animation: iconGlow 3.5s ease-in-out infinite;
+  background: rgba(251, 186, 22, 0.07);
+  border: 1px solid rgba(251, 186, 22, 0.15);
+  animation: iconPulse 4s ease-in-out infinite;
 }
 
-.welcome-content h2 {
-  font-size: 26px;
+.welcome-cta-label {
+  font-size: 19px;
   font-weight: 700;
-  margin-bottom: 8px;
   color: #fbba16;
+  letter-spacing: -0.3px;
 }
 
-.welcome-content p {
-  color: var(--text-secondary);
-  margin-bottom: 24px;
+.welcome-cta-formats {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.6px;
+  margin-top: -6px;
 }
 
 .welcome-hint {
   font-size: 12px;
   color: var(--text-tertiary) !important;
-  margin-top: 16px !important;
+  margin-top: 0 !important;
 }
 
+/* ── Keyframes ───────────────────────────────── */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes iconGlow {
+/* Button breathes — subtle scale + shadow glow */
+@keyframes ctaBreathe {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(251, 186, 22, 0),
-                0 0 20px rgba(251, 186, 22, 0.08);
-    opacity: 1;
+    box-shadow: 0 0 0   0   rgba(251,186,22,0),
+                0 8px 32px     rgba(0,0,0,0.45);
   }
   50% {
-    box-shadow: 0 0 0 10px rgba(251, 186, 22, 0.06),
-                0 0 40px rgba(251, 186, 22, 0.18);
-    opacity: 0.9;
+    box-shadow: 0 0 0  18px rgba(251,186,22,0.05),
+                0 8px 48px     rgba(0,0,0,0.55);
+  }
+}
+
+/* Rings expand and fade — two offset by 1.5s */
+@keyframes ctaRipple {
+  0%   { transform: scale(1);    opacity: 0.5; }
+  100% { transform: scale(1.45); opacity: 0;   }
+}
+
+/* Icon inner circle glows in sync */
+@keyframes iconPulse {
+  0%, 100% {
+    box-shadow: 0 0 0  0px rgba(251,186,22,0);
+    background: rgba(251,186,22,0.07);
+  }
+  50% {
+    box-shadow: 0 0 24px 6px rgba(251,186,22,0.14);
+    background: rgba(251,186,22,0.12);
   }
 }
 
