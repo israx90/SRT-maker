@@ -87,6 +87,11 @@ function setupFileManager() {
     fileNameDisplay.textContent = file.name;
     try {
       const audioBuffer = await audioEngine.loadFile(file);
+      
+      // Clear old project data
+      subtitleManager.load([]);
+      sectionManager.clear();
+      
       welcomeScreen.style.display = 'none';
       waveformArea.style.display = 'block';
       showToast('Audio cargado correctamente', 'success');
