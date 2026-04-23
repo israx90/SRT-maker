@@ -2032,23 +2032,21 @@ body.drag-over::after {
 
 .fs-ambient-bg {
   position: absolute;
-  inset: -50%;
+  inset: -10%;
   background-color: var(--ambient-color, transparent);
-  mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 50%);
-  -webkit-mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 50%);
-  opacity: 0.25;
-  filter: blur(100px);
+  mask-image: radial-gradient(circle at 50% 50%, transparent 40%, black 100%);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 40%, black 100%);
+  opacity: 0.4;
+  filter: blur(60px);
   z-index: 0;
   pointer-events: none;
-  animation: ambientDrift 20s ease-in-out infinite alternate;
+  animation: vignetteBreathe 12s ease-in-out infinite alternate;
   transition: background-color 1.5s ease-in-out;
 }
 
-@keyframes ambientDrift {
-  0% { transform: scale(1) translate(0, 0); }
-  33% { transform: scale(1.1) translate(2%, 3%); }
-  66% { transform: scale(0.9) translate(-2%, -1%); }
-  100% { transform: scale(1.05) translate(-1%, 2%); }
+@keyframes vignetteBreathe {
+  0% { opacity: 0.3; transform: scale(1); }
+  100% { opacity: 0.5; transform: scale(1.05); }
 }
 
 /* Close button */
@@ -2123,14 +2121,14 @@ body.drag-over::after {
   font-weight: 700;
   line-height: 1.25;
   color: #fbba16;
-  transition: all 0.3s ease;
   min-height: 100px;
-  animation: fsTextPulse 3s ease-in-out infinite;
+  /* animation triggered by JS */
 }
 
-@keyframes fsTextPulse {
-  0%, 100% { opacity: 1; text-shadow: 0 0 30px rgba(251, 186, 22, 0.3); }
-  50% { opacity: 0.92; text-shadow: 0 0 50px rgba(251, 186, 22, 0.5); }
+@keyframes fsTextCinematic {
+  0% { opacity: 0; transform: scale(0.97) translateY(8px); filter: blur(5px); text-shadow: 0 0 0 transparent; }
+  15% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0px); text-shadow: 0 0 30px rgba(251, 186, 22, 0.4); }
+  100% { opacity: 1; transform: scale(1.03) translateY(0); filter: blur(0px); text-shadow: 0 0 50px rgba(251, 186, 22, 0.6); }
 }
 
 .fs-overlay {

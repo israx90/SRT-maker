@@ -549,13 +549,23 @@ export class SubtitleUI {
 
     if (fsCurrent) {
       if (sub) {
-        fsCurrent.innerHTML = this._escapeHtml(sub.text).replace(/\n/g, '<br>');
+        const newHtml = this._escapeHtml(sub.text).replace(/\n/g, '<br>');
+        if (fsCurrent.innerHTML !== newHtml) {
+          fsCurrent.innerHTML = newHtml;
+          fsCurrent.style.animation = 'none';
+          void fsCurrent.offsetWidth; // trigger reflow
+          fsCurrent.style.animation = 'fsTextCinematic 10s cubic-bezier(0.1, 0.9, 0.2, 1) forwards';
+        }
+        
         const prev = this.manager.getPrev(sub.id);
         if (fsPrev) fsPrev.textContent = prev ? prev.text.replace(/\n/g, ' ') : '';
         const next = this.manager.getNext(sub.id);
         if (fsNext) fsNext.textContent = next ? next.text.replace(/\n/g, ' ') : '';
       } else {
-        fsCurrent.textContent = '';
+        if (fsCurrent.innerHTML !== '') {
+          fsCurrent.innerHTML = '';
+          fsCurrent.style.animation = 'none';
+        }
         if (fsPrev) fsPrev.textContent = '';
         const allSubs = this.manager.getAll();
         const nextSub = allSubs.find(s => s.layer === 0 && s.startTime > currentTimeMs);
