@@ -531,6 +531,18 @@ export class SubtitleUI {
     const fsOverlay = document.getElementById('fs-overlay');
     const fsProgress = document.getElementById('fs-progress-fill');
     const fsTime = document.getElementById('fs-time');
+    const fsSectionBadge = document.getElementById('fs-section-badge');
+
+    if (fsSectionBadge && this.sectionManager) {
+      const section = this.sectionManager.getAtTime(currentTimeMs);
+      if (section) {
+        fsSectionBadge.textContent = section.name;
+        fsSectionBadge.style.backgroundColor = section.color || '#333';
+        fsSectionBadge.style.display = 'block';
+      } else {
+        fsSectionBadge.style.display = 'none';
+      }
+    }
 
     if (fsCurrent) {
       if (sub) {

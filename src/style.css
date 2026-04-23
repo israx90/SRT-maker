@@ -2068,22 +2068,39 @@ body.drag-over::after {
   padding: 60px 40px;
 }
 
+.fs-section-badge {
+  position: absolute;
+  top: 40px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--section-color, #333);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+  z-index: 100;
+  opacity: 0.9;
+}
+
 .fs-prev {
-  font-size: 22px;
+  font-size: 36px;
   font-weight: 400;
   color: rgba(255, 255, 255, 0.2);
   line-height: 1.4;
   transition: all 0.3s ease;
-  min-height: 34px;
+  min-height: 50px;
 }
 
 .fs-current {
-  font-size: 52px;
+  font-size: 80px;
   font-weight: 700;
   line-height: 1.25;
   color: #fbba16;
   transition: all 0.3s ease;
-  min-height: 66px;
+  min-height: 100px;
   animation: fsTextPulse 3s ease-in-out infinite;
 }
 
@@ -2093,7 +2110,7 @@ body.drag-over::after {
 }
 
 .fs-overlay {
-  font-size: 26px; /* 50% of 52px */
+  font-size: 40px; /* 50% of 80px */
   font-weight: 500;
   color: var(--overlay-color);
   opacity: 0.9;
@@ -2102,12 +2119,12 @@ body.drag-over::after {
 }
 
 .fs-next {
-  font-size: 22px;
+  font-size: 36px;
   font-weight: 400;
   color: rgba(255, 255, 255, 0.15);
   line-height: 1.4;
   transition: all 0.3s ease;
-  min-height: 34px;
+  min-height: 50px;
 }
 
 /* Controls */
