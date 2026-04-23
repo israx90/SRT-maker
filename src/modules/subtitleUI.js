@@ -532,6 +532,7 @@ export class SubtitleUI {
     const fsProgress = document.getElementById('fs-progress-fill');
     const fsTime = document.getElementById('fs-time');
     const fsSectionBadge = document.getElementById('fs-section-badge');
+    const fsAmbientBg = document.getElementById('fs-ambient-bg');
 
     if (fsSectionBadge && this.sectionManager) {
       const section = this.sectionManager.getAtTime(currentTimeMs);
@@ -539,8 +540,10 @@ export class SubtitleUI {
         fsSectionBadge.textContent = section.name;
         fsSectionBadge.style.backgroundColor = section.color || '#333';
         fsSectionBadge.style.display = 'block';
+        if (fsAmbientBg) fsAmbientBg.style.setProperty('--ambient-color', section.color || 'transparent');
       } else {
         fsSectionBadge.style.display = 'none';
+        if (fsAmbientBg) fsAmbientBg.style.setProperty('--ambient-color', 'transparent');
       }
     }
 

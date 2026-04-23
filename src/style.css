@@ -2027,6 +2027,28 @@ body.drag-over::after {
   align-items: center;
   justify-content: center;
   user-select: none;
+  overflow: hidden;
+}
+
+.fs-ambient-bg {
+  position: absolute;
+  inset: -50%;
+  background-color: var(--ambient-color, transparent);
+  mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 50%);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 50%);
+  opacity: 0.25;
+  filter: blur(100px);
+  z-index: 0;
+  pointer-events: none;
+  animation: ambientDrift 20s ease-in-out infinite alternate;
+  transition: background-color 1.5s ease-in-out;
+}
+
+@keyframes ambientDrift {
+  0% { transform: scale(1) translate(0, 0); }
+  33% { transform: scale(1.1) translate(2%, 3%); }
+  66% { transform: scale(0.9) translate(-2%, -1%); }
+  100% { transform: scale(1.05) translate(-1%, 2%); }
 }
 
 /* Close button */
@@ -2066,6 +2088,8 @@ body.drag-over::after {
   max-width: 85%;
   flex: 1;
   padding: 60px 40px;
+  z-index: 1;
+  position: relative;
 }
 
 .fs-section-badge {
@@ -2137,6 +2161,8 @@ body.drag-over::after {
   max-width: 800px;
   opacity: 0.4;
   transition: opacity 0.3s ease;
+  z-index: 1;
+  position: relative;
 }
 
 .fullscreen-player:hover .fs-controls {
