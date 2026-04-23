@@ -2126,9 +2126,9 @@ body.drag-over::after {
 }
 
 @keyframes fsTextCinematic {
-  0% { opacity: 0; transform: scale(0.97) translateY(8px); filter: blur(5px); text-shadow: 0 0 0 transparent; }
-  15% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0px); text-shadow: 0 0 30px rgba(251, 186, 22, 0.4); }
-  100% { opacity: 1; transform: scale(1.03) translateY(0); filter: blur(0px); text-shadow: 0 0 50px rgba(251, 186, 22, 0.6); }
+  0% { opacity: 0; transform: scale(0.97) translateY(8px); }
+  15% { opacity: 1; transform: scale(1) translateY(0); }
+  100% { opacity: 1; transform: scale(1.03) translateY(0); }
 }
 
 .fs-overlay {
