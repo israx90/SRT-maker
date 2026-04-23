@@ -49,15 +49,28 @@
   --glass-border:       rgba(251, 186, 22, 0.1);
   --glass-border-hover: rgba(251, 186, 22, 0.22);
 
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(251, 186, 22, 0.35);
+
+  /* Accent subtle (for active sub-item background) */
+  --accent-subtle: rgba(251, 186, 22, 0.08);
+
+  /* Background radial glow used by welcome screen */
+  --gradient-glow: radial-gradient(ellipse at 50% 30%, rgba(251, 186, 22, 0.05) 0%, transparent 60%);
+
   /* Shadows */
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.5);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.6);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.7);
   --shadow-glow: 0 0 16px rgba(251, 186, 22, 0.18);
+  --shadow-accent-small: 0 2px 8px rgba(251, 186, 22, 0.2);
+  --shadow-accent-large: 0 4px 16px rgba(251, 186, 22, 0.35);
+  --shadow-accent-glow:  0 0 10px rgba(251, 186, 22, 0.4);
 
   /* Borders */
   --border-subtle: 1px solid rgba(255,255,255,0.06);
   --border-light:  1px solid rgba(255,255,255,0.1);
+  --border-color:  rgba(255,255,255,0.08);   /* raw color for 1px solid usage */
 
   /* Radius */
   --radius-sm: 5px;
@@ -475,7 +488,14 @@ h1, h2, h3 {
 
 .welcome-icon {
   margin-bottom: 24px;
-  animation: floatBounce 3s ease-in-out infinite;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  border-radius: 50%;
+  background: rgba(251, 186, 22, 0.05);
+  border: 1px solid rgba(251, 186, 22, 0.1);
+  animation: iconGlow 3.5s ease-in-out infinite;
 }
 
 .welcome-content h2 {
@@ -501,9 +521,17 @@ h1, h2, h3 {
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes floatBounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+@keyframes iconGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(251, 186, 22, 0),
+                0 0 20px rgba(251, 186, 22, 0.08);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(251, 186, 22, 0.06),
+                0 0 40px rgba(251, 186, 22, 0.18);
+    opacity: 0.9;
+  }
 }
 
 /* --- Waveform Section --- */

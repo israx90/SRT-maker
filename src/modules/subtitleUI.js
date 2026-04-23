@@ -12,12 +12,19 @@ export class SubtitleUI {
     this.manager = subtitleManager;
     this.engine = audioEngine;
     this.sectionManager = null; // Set externally
-    this.selectedId = null;
+    this.selectedIds = new Set();
+    this.lastSelectedId = null;
     this.listEl = null;
     this.editorEl = null;
     this.previewEl = null;
     this.onSubtitleSelect = null;
     this._inlineEditingId = null;
+    this._lastActiveSubId = null;
+  }
+
+  /** Backward-compat getter for single-selection code in main.js */
+  get selectedId() {
+    return this.lastSelectedId;
   }
 
   /**
@@ -33,8 +40,7 @@ export class SubtitleUI {
     this.karaokeNextEl = document.getElementById('karaoke-next');
     this.karaokeOverlayEl = document.getElementById('karaoke-overlay');
 
-    // Listen for manager changes
-    this.manager.onChange = (subs) => {
+    this.manager.onChange = () => {
       this.renderList();
       this.syncRegions();
     };
@@ -62,7 +68,7 @@ export class SubtitleUI {
     }
 
     this.listEl.innerHTML = subs.map((sub, index) => {
-      const isActive = sub.id === this.selectedId;
+      const isActive = this.selectedIds.has(sub.id);
       const isOverlap = overlapIndices.has(index);
       const duration = sub.endTime - sub.startTime;
       const isOverlay = sub.layer === 1;
@@ -112,7 +118,7 @@ export class SubtitleUI {
         // Don't select if we're inline editing
         if (e.target.closest('.inline-edit-area')) return;
         const id = parseInt(el.dataset.id);
-        this.select(id);
+        this.select(id, e.shiftKey, e.ctrlKey || e.metaKey);
       });
       el.addEventListener('dblclick', (e) => {
         const id = parseInt(el.dataset.id);
@@ -132,7 +138,8 @@ export class SubtitleUI {
     });
 
     // Keep selected item visible
-    if (this.selectedId) {
+    if (this.selectedIds.size > 0) {
+      // Just scroll to the first active element found
       const activeEl = this.listEl.querySelector('.sub-item.active');
       if (activeEl) {
         activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -154,23 +161,25 @@ export class SubtitleUI {
     textarea.focus();
     textarea.select();
 
+    let _finished = false;
     const finish = () => {
-      this.manager.update(id, { text: textarea.value });
+      if (_finished) return;
+      _finished = true;
       this._inlineEditingId = null;
+      this.manager.update(id, { text: textarea.value });
     };
 
     textarea.addEventListener('blur', finish);
     textarea.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        _finished = true;
         this._inlineEditingId = null;
         this.renderList();
       }
-      // Ctrl+Enter to confirm
       if (e.key === 'Enter' && e.ctrlKey) {
         e.preventDefault();
         finish();
       }
-      // Stop propagation so space/enter don't trigger global shortcuts
       e.stopPropagation();
     });
   }
@@ -178,21 +187,99 @@ export class SubtitleUI {
   /**
    * Select a subtitle
    */
-  select(id) {
-    this.selectedId = id;
+  select(id, shiftKey = false, ctrlKey = false) {
+    if (!id) {
+      this.selectedIds.clear();
+      this.lastSelectedId = null;
+    } else if (shiftKey && this.lastSelectedId) {
+      // Select range
+      const subs = this.manager.getAll();
+      const lastIdx = subs.findIndex(s => s.id === this.lastSelectedId);
+      const currIdx = subs.findIndex(s => s.id === id);
+      if (lastIdx !== -1 && currIdx !== -1) {
+        const start = Math.min(lastIdx, currIdx);
+        const end = Math.max(lastIdx, currIdx);
+        if (!ctrlKey) this.selectedIds.clear();
+        for (let i = start; i <= end; i++) {
+          this.selectedIds.add(subs[i].id);
+        }
+      }
+    } else if (ctrlKey) {
+      // Toggle
+      if (this.selectedIds.has(id)) {
+        this.selectedIds.delete(id);
+      } else {
+        this.selectedIds.add(id);
+      }
+      this.lastSelectedId = id;
+    } else {
+      // Single select
+      this.selectedIds.clear();
+      this.selectedIds.add(id);
+      this.lastSelectedId = id;
+    }
+
     this.renderList();
-    this.renderEditor(id);
-    this.engine.highlightRegion(id);
-    if (this.onSubtitleSelect) this.onSubtitleSelect(id);
+    this.renderEditor();
+    
+    // Highlight regions
+    const allRegions = this.engine.regions ? this.engine.regions.getRegions() : [];
+    for (const region of allRegions) {
+      if (region.id.startsWith('sub-')) {
+        const rId = parseInt(region.id.replace('sub-', ''));
+        const sub = this.manager.get(rId);
+        
+        let sectionColor = null;
+        if (sub && this.sectionManager) {
+          const section = this.sectionManager.getAtTime(sub.startTime);
+          if (section) sectionColor = section.color;
+        }
+
+        const isActive = this.selectedIds.has(rId);
+        
+        let color;
+        let borderColor;
+        if (sub && sub.layer === 1) {
+          color = isActive ? 'rgba(200, 200, 200, 0.42)' : 'rgba(200, 200, 200, 0.18)';
+          borderColor = 'rgba(128, 128, 128, 0.7)';
+        } else {
+          color = sectionColor ? this._hexToRgba(sectionColor, 0.18) : 'rgba(255, 215, 0, 0.15)';
+          borderColor = sectionColor ? this._hexToRgba(sectionColor, 0.6) : 'rgba(255, 215, 0, 0.6)';
+          if (isActive) {
+            color = sectionColor ? this._hexToRgba(sectionColor, 0.42) : 'rgba(255, 255, 0, 0.4)';
+            borderColor = sectionColor ? this._hexToRgba(sectionColor, 0.9) : 'rgba(255, 255, 0, 0.9)';
+          }
+        }
+
+        const regionColor = color; 
+        region.setOptions({
+          color: regionColor,
+        });
+        
+        let retries = 0;
+        const applyBorder = () => {
+          if (region && region.element) {
+            region.element.style.setProperty('--region-border-color', borderColor);
+            region.element.style.setProperty('--region-bg-color', regionColor);
+          } else if (retries < 10) {
+            retries++;
+            setTimeout(applyBorder, 50);
+          }
+        };
+        applyBorder();
+      }
+    }
+
+    if (this.onSubtitleSelect && id) this.onSubtitleSelect(id);
   }
 
   /**
    * Render the editor panel for selected subtitle
    */
-  renderEditor(id) {
+  renderEditor() {
     if (!this.editorEl) return;
 
-    if (!id) {
+    if (this.selectedIds.size === 0) {
       this.editorEl.innerHTML = `
         <div class="editor-empty">
           <p>Selecciona un subtítulo para editar</p>
@@ -201,6 +288,17 @@ export class SubtitleUI {
       return;
     }
 
+    if (this.selectedIds.size > 1) {
+      this.editorEl.innerHTML = `
+        <div class="editor-empty">
+          <p>${this.selectedIds.size} subtítulos seleccionados</p>
+          <p class="empty-hint" style="margin-top: 10px;">Mueve los bloques en el waveform, o usa copiar/pegar.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const id = Array.from(this.selectedIds)[0];
     const sub = this.manager.get(id);
     if (!sub) return;
 
@@ -338,8 +436,9 @@ export class SubtitleUI {
     this.editorEl.querySelector('.btn-delete-sub').addEventListener('click', () => {
       this.manager.remove(id);
       this.engine.removeRegion(id);
-      this.selectedId = null;
-      this.renderEditor(null);
+      this.selectedIds.delete(id);
+      if (this.lastSelectedId === id) this.lastSelectedId = null;
+      this.renderEditor();
     });
 
     // Event: Duplicate
@@ -382,14 +481,15 @@ export class SubtitleUI {
         const next = this.manager.getNext(sub.id);
         this.karaokeNextEl.textContent = next ? next.text.replace(/\n/g, ' ') : '';
         
-        // Auto-select during playback if not editing
-        if (sub.id !== this.selectedId && !this._isEditing()) {
+        // Auto-select during playback only when the active subtitle changes
+        if (!this._isEditing() && this._lastActiveSubId !== sub.id) {
+          this._lastActiveSubId = sub.id;
           this.select(sub.id);
         }
       } else {
         this.karaokeCurrentEl.textContent = '';
-        
-        // If there's no active subtitle, find the closest upcoming subtitle
+        this._lastActiveSubId = null;
+
         const allSubs = this.manager.getAll();
         const nextSub = allSubs.find(s => s.layer === 0 && s.startTime > currentTimeMs);
         if (nextSub) {
@@ -408,16 +508,8 @@ export class SubtitleUI {
           this.karaokeOverlayEl.style.display = 'block';
           this.karaokeOverlayEl.style.opacity = '0.85';
         } else {
-          const allSubs = this.manager.getAll();
-          const nextOverlay = allSubs.find(s => s.layer === 1 && s.startTime > currentTimeMs);
-          if (nextOverlay) {
-            this.karaokeOverlayEl.innerHTML = this._escapeHtml(nextOverlay.text).replace(/\n/g, '<br>');
-            this.karaokeOverlayEl.style.display = 'block';
-            this.karaokeOverlayEl.style.opacity = '0.3'; // Faded upcoming
-          } else {
-            this.karaokeOverlayEl.textContent = '';
-            this.karaokeOverlayEl.style.display = 'none';
-          }
+          this.karaokeOverlayEl.textContent = '';
+          this.karaokeOverlayEl.style.display = 'none';
         }
       }
     }
@@ -462,16 +554,8 @@ export class SubtitleUI {
         fsOverlay.style.display = 'block';
         fsOverlay.style.opacity = '0.85';
       } else {
-        const allSubs = this.manager.getAll();
-        const nextOverlay = allSubs.find(s => s.layer === 1 && s.startTime > currentTimeMs);
-        if (nextOverlay) {
-          fsOverlay.innerHTML = this._escapeHtml(nextOverlay.text).replace(/\n/g, '<br>');
-          fsOverlay.style.display = 'block';
-          fsOverlay.style.opacity = '0.3';
-        } else {
-          fsOverlay.textContent = '';
-          fsOverlay.style.display = 'none';
-        }
+        fsOverlay.textContent = '';
+        fsOverlay.style.display = 'none';
       }
     }
 
@@ -500,6 +584,11 @@ export class SubtitleUI {
    * Sync regions with wavesurfer
    */
   syncRegions() {
+    if (this._syncTimeout) clearTimeout(this._syncTimeout);
+    this._syncTimeout = setTimeout(() => this._doSyncRegions(), 50);
+  }
+
+  _doSyncRegions() {
     if (!this.engine.regions) return;
 
     // Clear only subtitle regions (not section markers)
@@ -517,20 +606,68 @@ export class SubtitleUI {
     for (let i = 0; i < subs.length; i++) {
       const sub = subs[i];
       const isOverlap = overlapIndices.has(i);
-      const isActive = sub.id === this.selectedId;
+      const isActive = this.selectedIds.has(sub.id);
       const isOverlay = sub.layer === 1;
 
-      let color;
-      if (isOverlay) {
-        color = isActive ? 'rgba(200, 200, 200, 0.42)' : 'rgba(200, 200, 200, 0.18)';
-      } else {
-        color = 'rgba(255, 215, 0, 0.18)';
-        if (isOverlap) color = 'rgba(239, 68, 68, 0.3)';
-        if (isActive) color = 'rgba(255, 215, 0, 0.42)';
+      let sectionColor = null;
+      if (this.sectionManager) {
+        const section = this.sectionManager.getAtTime(sub.startTime);
+        if (section) sectionColor = section.color;
       }
 
-      this.engine.addRegion(sub.id, sub.startTime / 1000, sub.endTime / 1000, sub.text, color, sub.layer);
+      let color;
+      let borderColor;
+      if (isOverlay) {
+        color = isActive ? 'rgba(200, 200, 200, 0.42)' : 'rgba(200, 200, 200, 0.18)';
+        borderColor = 'rgba(128, 128, 128, 0.7)';
+      } else {
+        color = sectionColor ? this._hexToRgba(sectionColor, 0.18) : 'rgba(255, 215, 0, 0.18)';
+        borderColor = sectionColor ? this._hexToRgba(sectionColor, 0.6) : 'rgba(255, 215, 0, 0.6)';
+        if (isOverlap) {
+          color = 'rgba(239, 68, 68, 0.3)';
+          borderColor = 'rgba(239, 68, 68, 0.8)';
+        }
+        if (isActive) {
+          color = sectionColor ? this._hexToRgba(sectionColor, 0.42) : 'rgba(255, 215, 0, 0.42)';
+          borderColor = sectionColor ? this._hexToRgba(sectionColor, 0.9) : 'rgba(255, 215, 0, 0.9)';
+        }
+      }
+
+      const region = this.engine.addRegion(sub.id, sub.startTime / 1000, sub.endTime / 1000, sub.text, color, sub.layer);
+      
+      // Update border and background safely
+      let retries = 0;
+      const applyBorder = () => {
+        if (region && region.element) {
+          region.element.style.setProperty('--region-border-color', borderColor);
+          region.element.style.setProperty('--region-bg-color', color);
+        } else if (retries < 10) {
+          retries++;
+          setTimeout(applyBorder, 50);
+        }
+      };
+      applyBorder();
     }
+  }
+
+  /**
+   * Convert hex to rgba string
+   */
+  _hexToRgba(hex, alpha) {
+    if (!hex) return null;
+    let r = 0, g = 0, b = 0;
+    // Remove hash
+    hex = hex.replace(/^#/, '');
+    if (hex.length === 3) {
+      r = parseInt(hex[0] + hex[0], 16);
+      g = parseInt(hex[1] + hex[1], 16);
+      b = parseInt(hex[2] + hex[2], 16);
+    } else if (hex.length === 6) {
+      r = parseInt(hex.substring(0, 2), 16);
+      g = parseInt(hex.substring(2, 4), 16);
+      b = parseInt(hex.substring(4, 6), 16);
+    }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
   /**

@@ -21,6 +21,7 @@ export class AudioEngine {
     this.onRegionUpdate = null;
     this.onSeek = null;
     this._playbackRate = 1;
+    this._lastProgressColor = '#ffd70080';
   }
 
   /**
@@ -99,7 +100,8 @@ export class AudioEngine {
       
       /* Regions styling */
       .region {
-        border: 1px solid rgba(255, 215, 0, 0.6) !important;
+        border: 1px solid var(--region-border-color, rgba(255, 215, 0, 0.6)) !important;
+        background-color: var(--region-bg-color, rgba(255, 215, 0, 0.15)) !important;
         border-radius: 4px !important;
         overflow: hidden !important;
         display: flex !important;
@@ -121,11 +123,11 @@ export class AudioEngine {
         border-color: rgba(128, 128, 128, 0.7) !important;
       }
 
-      /* Section markers cover full height */
+      /* Section markers cover top only */
       .region.section-region {
-        height: 100% !important;
+        height: 10px !important;
         top: 0 !important;
-        bottom: 0 !important;
+        bottom: auto !important;
       }
 
       .region-content {
@@ -171,7 +173,7 @@ export class AudioEngine {
 
     this.regions.on('region-clicked', (region, e) => {
       e.stopPropagation();
-      if (this.onRegionClick) this.onRegionClick(region);
+      if (this.onRegionClick) this.onRegionClick(region, e);
     });
   }
 
@@ -294,11 +296,11 @@ export class AudioEngine {
         if (layer === 1) {
           el.style.setProperty('top', '0', 'important');
           el.style.setProperty('bottom', 'auto', 'important');
-          el.style.setProperty('border', '1px solid rgba(200, 200, 200, 0.5)', 'important');
+          el.style.setProperty('border', '1px solid var(--region-border-color, rgba(200, 200, 200, 0.5))', 'important');
         } else {
           el.style.setProperty('bottom', '0', 'important');
           el.style.setProperty('top', 'auto', 'important');
-          el.style.setProperty('border', '1px solid rgba(255, 215, 0, 0.6)', 'important');
+          el.style.setProperty('border', '1px solid var(--region-border-color, rgba(255, 215, 0, 0.6))', 'important');
         }
       }
     });
@@ -386,16 +388,16 @@ export class AudioEngine {
         el = root.querySelector(`[data-id="section-${id}"]`);
       }
       if (el) {
-        el.style.setProperty('height', '100%', 'important');
+        el.style.setProperty('height', '10px', 'important');
         el.style.setProperty('top', '0', 'important');
-        el.style.setProperty('bottom', '0', 'important');
+        el.style.setProperty('bottom', 'auto', 'important');
         el.style.setProperty('display', 'flex', 'important');
-        el.style.setProperty('align-items', 'flex-start', 'important');
-        el.style.setProperty('padding', '4px', 'important');
+        el.style.setProperty('align-items', 'center', 'important');
+        el.style.setProperty('padding', '0 4px', 'important');
         el.style.setProperty('z-index', '0', 'important');
-        el.style.setProperty('background', `linear-gradient(to bottom, ${color}66 0px, ${color}66 24px, ${color}11 24px, ${color}11 100%)`, 'important');
-        el.style.setProperty('border-left', `1px solid ${color}88`, 'important');
-        el.style.setProperty('border-right', `1px solid ${color}88`, 'important');
+        el.style.setProperty('background', `${color}88`, 'important');
+        el.style.setProperty('border-left', `2px solid ${color}`, 'important');
+        el.style.setProperty('border-right', `2px solid ${color}`, 'important');
       }
     });
 

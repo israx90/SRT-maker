@@ -122,9 +122,9 @@ export function parseLyric(content) {
  * Parse a @SECTION line
  */
 function _parseSection(line) {
-  // @SECTION CUSTOM "My Name" 00:10.000 > 00:20.000
+  // @SECTION CUSTOM "My Name" 00:10.000 > 00:20.000 [#123456]
   const customMatch = line.match(
-    /^@SECTION\s+CUSTOM\s+"([^"]+)"\s+([\d:.]+)\s*>\s*([\d:.]+)$/
+    /^@SECTION\s+CUSTOM\s+"([^"]+)"\s+([\d:.]+)\s*>\s*([\d:.]+)(?:\s+\[(#[0-9a-fA-F]{6})\])?$/
   );
   if (customMatch) {
     return {
@@ -132,12 +132,13 @@ function _parseSection(line) {
       name: customMatch[1],
       startTime: lyricTimeToMs(customMatch[2]),
       endTime: lyricTimeToMs(customMatch[3]),
+      color: customMatch[4] || null, // Optional color
     };
   }
 
-  // @SECTION TYPE 00:10.000 > 00:20.000
+  // @SECTION TYPE 00:10.000 > 00:20.000 [#123456]
   const typeMatch = line.match(
-    /^@SECTION\s+(\w+)\s+([\d:.]+)\s*>\s*([\d:.]+)$/
+    /^@SECTION\s+(\w+)\s+([\d:.]+)\s*>\s*([\d:.]+)(?:\s+\[(#[0-9a-fA-F]{6})\])?$/
   );
   if (typeMatch) {
     return {
@@ -145,6 +146,7 @@ function _parseSection(line) {
       name: '', // Will be resolved by SectionManager using type
       startTime: lyricTimeToMs(typeMatch[2]),
       endTime: lyricTimeToMs(typeMatch[3]),
+      color: typeMatch[4] || null,
     };
   }
 
@@ -203,10 +205,11 @@ export function serializeLyric(subtitles, sections) {
       const start = msToLyricTime(sec.startTime);
       const end = msToLyricTime(sec.endTime);
 
+      const colorTag = sec.color ? ` [${sec.color}]` : '';
       if (sec.type === 'CUSTOM') {
-        lines.push(`@SECTION CUSTOM "${sec.name}" ${start} > ${end}`);
+        lines.push(`@SECTION CUSTOM "${sec.name}" ${start} > ${end}${colorTag}`);
       } else {
-        lines.push(`@SECTION ${sec.type} ${start} > ${end}`);
+        lines.push(`@SECTION ${sec.type} ${start} > ${end}${colorTag}`);
       }
       lines.push('');
     } else {

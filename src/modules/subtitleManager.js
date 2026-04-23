@@ -3,7 +3,6 @@
  * Handles CRUD operations, overlap detection, sorting, and sync
  */
 
-import { msToSrtTime, msToDisplay } from './srtParser.js';
 
 let _nextId = 1;
 
@@ -231,6 +230,7 @@ export class SubtitleManager {
     if (splitTimeMs <= sub.startTime || splitTimeMs >= sub.endTime) return null;
 
     this._saveState();
+    const originalEndTime = sub.endTime;
     const words = sub.text.split(' ');
     const midWord = Math.ceil(words.length / 2);
     const text1 = words.slice(0, midWord).join(' ');
@@ -242,12 +242,10 @@ export class SubtitleManager {
     const newSub = {
       id: _nextId++,
       startTime: splitTimeMs,
-      endTime: sub.endTime + (splitTimeMs - sub.startTime),
-      text: text2
+      endTime: originalEndTime,
+      text: text2,
+      layer: sub.layer || 0,
     };
-    // Fix: use the original end time for the second part
-    const originalEnd = sub.endTime + (splitTimeMs - sub.startTime);
-    newSub.endTime = originalEnd > splitTimeMs ? originalEnd : splitTimeMs + 2000;
 
     this.subtitles.push(newSub);
     this._sort();
@@ -264,14 +262,14 @@ export class SubtitleManager {
     if (!sub1 || !sub2) return null;
 
     this._saveState();
-    const merged = {
-      ...sub1,
-      endTime: Math.max(sub1.endTime, sub2.endTime),
-      text: `${sub1.text}\n${sub2.text}`.trim()
-    };
-    Object.assign(sub1, merged);
-    this.remove(sub2.id);
-    // remove already calls _notify
+    sub1.endTime = Math.max(sub1.endTime, sub2.endTime);
+    sub1.text = `${sub1.text}\n${sub2.text}`.trim();
+
+    // Direct splice — avoids a second _saveState() call from remove()
+    const idx = this.subtitles.findIndex(s => s.id === sub2.id);
+    if (idx !== -1) this.subtitles.splice(idx, 1);
+
+    this._notify();
     return sub1;
   }
 

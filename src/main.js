@@ -9,7 +9,7 @@ import { SubtitleManager } from './modules/subtitleManager.js';
 import { SubtitleUI } from './modules/subtitleUI.js';
 import { FileManager } from './modules/fileManager.js';
 import { SpeechDetector } from './modules/speechDetector.js';
-import { SectionManager, SECTION_TYPES } from './modules/sectionManager.js';
+import { SectionManager } from './modules/sectionManager.js';
 import { msToDisplay, serializeSRTWithSections } from './modules/srtParser.js';
 import i18n from './modules/i18n.js';
 
@@ -42,6 +42,7 @@ const dropZone = document.getElementById('drop-zone');
 // Track copy source
 let _copySectionId = null;
 let _magneticSnap = true;
+let _clipboard = []; // subtitle clipboard for copy/paste
 
 // ─── Initialization ───
 function init() {
@@ -95,18 +96,24 @@ function setupFileManager() {
     }
   };
 
-  fileManager.onSRTLoaded = (subtitles, filename) => {
+  fileManager.onSRTLoaded = (subtitles) => {
     subtitleManager.load(subtitles);
     showToast(`SRT importado: ${subtitles.length} subtítulos`, 'success');
   };
 
-  fileManager.onLyricLoaded = ({ version, sections, subtitles }) => {
+  fileManager.onLyricLoaded = ({ sections, subtitles }) => {
     subtitleManager.load(subtitles);
     // Load sections
-    sectionManager.sections = [];
+    sectionManager.clear();
     for (const sec of sections) {
-      sectionManager.add(sec.type, sec.startTime, sec.endTime, sec.name || '');
+      const added = sectionManager.add(sec.type, sec.startTime, sec.endTime, sec.name || '');
+      if (sec.color) {
+        sectionManager.update(added.id, { color: sec.color });
+      }
     }
+    syncSectionMarkers();
+    renderSectionsStrip();
+    subtitleUI.syncRegions();
     showToast(`.lyric cargado: ${subtitles.length} bloques, ${sections.length} secciones`, 'success');
   };
 
@@ -270,6 +277,36 @@ function setupToolbar() {
   });
   // Add overlay button
   document.getElementById('btn-add-overlay').addEventListener('click', () => addOverlayAtCurrentTime());
+
+  // Copy selected subtitles to internal clipboard
+  document.getElementById('btn-copy-subs').addEventListener('click', () => {
+    const selected = Array.from(subtitleUI.selectedIds)
+      .map(id => subtitleManager.get(id))
+      .filter(Boolean);
+    if (selected.length === 0) { showToast('Selecciona subtítulos para copiar', 'warning'); return; }
+    _clipboard = selected.map(s => ({ ...s }));
+    showToast(`${selected.length} subtítulo${selected.length !== 1 ? 's' : ''} copiado${selected.length !== 1 ? 's' : ''}`, 'success');
+  });
+
+  // Paste clipboard subtitles at current playhead position
+  document.getElementById('btn-paste-subs').addEventListener('click', () => {
+    if (_clipboard.length === 0) { showToast('El portapapeles está vacío', 'warning'); return; }
+    if (!audioEngine.isReady) { showToast('Carga un audio primero', 'warning'); return; }
+    const currentMs = audioEngine.getCurrentTime() * 1000;
+    const minStart = Math.min(..._clipboard.map(s => s.startTime));
+    const offset = currentMs - minStart;
+    const newIds = [];
+    for (const s of _clipboard) {
+      const newSub = subtitleManager.add(s.startTime + offset, s.endTime + offset, s.text, s.layer);
+      newIds.push(newSub.id);
+    }
+    subtitleUI.selectedIds.clear();
+    for (const id of newIds) subtitleUI.selectedIds.add(id);
+    subtitleUI.lastSelectedId = newIds[newIds.length - 1];
+    subtitleUI.renderList();
+    subtitleUI.renderEditor();
+    showToast(`${newIds.length} subtítulo${newIds.length !== 1 ? 's' : ''} pegado${newIds.length !== 1 ? 's' : ''}`, 'success');
+  });
 }
 
 // ─── Quick Lyrics Input ───
@@ -644,25 +681,40 @@ function setupKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
     const active = document.activeElement;
     const isEditing = active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && active.type === 'text'));
-    if (e.ctrlKey && e.key === 's') { e.preventDefault(); exportSRT(); return; }
+    if (e.ctrlKey && e.key === 's') { e.preventDefault(); exportLyric(); return; }
     // Ctrl+Z (Win/Linux) or Cmd+Z (Mac)
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); if (subtitleManager.undo()) showToast('Acción deshecha', 'info'); return; }
     if (isEditing) return;
     switch (e.key) {
       case ' ': e.preventDefault(); audioEngine.playPause(); updatePlayButton(); break;
       case 'Enter': e.preventDefault(); addSubtitleAtCurrentTime(); break;
-      case 'Delete': case 'Backspace':
-        if (subtitleUI.selectedId) { e.preventDefault(); subtitleManager.remove(subtitleUI.selectedId); audioEngine.removeRegion(subtitleUI.selectedId); subtitleUI.selectedId = null; subtitleUI.renderEditor(null); }
+      case 'Delete': case 'Backspace': {
+        const toDelete = Array.from(subtitleUI.selectedIds);
+        if (toDelete.length > 0) {
+          e.preventDefault();
+          for (const selId of toDelete) {
+            subtitleManager.remove(selId);
+            audioEngine.removeRegion(selId);
+          }
+          subtitleUI.selectedIds.clear();
+          subtitleUI.lastSelectedId = null;
+          subtitleUI.renderEditor();
+        }
         break;
+      }
       case 'ArrowLeft': e.preventDefault(); audioEngine.seekRelative(e.shiftKey ? -0.01 : -0.1); break;
       case 'ArrowRight': e.preventDefault(); audioEngine.seekRelative(e.shiftKey ? 0.01 : 0.1); break;
-      case 'Tab':
+      case 'Tab': {
+        const curId = subtitleUI.lastSelectedId;
         e.preventDefault();
-        if (subtitleUI.selectedId) {
-          const next = e.shiftKey ? subtitleManager.getPrev(subtitleUI.selectedId) : subtitleManager.getNext(subtitleUI.selectedId);
+        if (curId) {
+          const next = e.shiftKey ? subtitleManager.getPrev(curId) : subtitleManager.getNext(curId);
           if (next) { subtitleUI.select(next.id); audioEngine.seekTo(next.startTime / 1000); }
-        } else if (subtitleManager.count > 0) { subtitleUI.select(subtitleManager.getAll()[0].id); }
+        } else if (subtitleManager.count > 0) {
+          subtitleUI.select(subtitleManager.getAll()[0].id);
+        }
         break;
+      }
       case '?': toggleShortcutsModal(); break;
     }
   });
@@ -755,9 +807,13 @@ function renderSectionsStrip() {
     block.dataset.id = sec.id;
     block.style.left  = `${leftPct}%`;
     block.style.width = `${widthPct}%`;
+    block.style.backgroundColor = `${sec.color}1a`;
+    block.style.borderColor = sec.color;
+    block.title = `${sec.name}  ${msToDisplay(sec.startTime)} → ${msToDisplay(sec.endTime)}`;
 
     const label = document.createElement('span');
     label.className = 'section-strip-block-label';
+    label.style.color = sec.color;
     label.textContent = sec.type === 'CUSTOM' ? sec.name : i18n.t('sec_' + sec.type.toLowerCase());
 
     const handleL = document.createElement('div');

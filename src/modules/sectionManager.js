@@ -8,14 +8,14 @@ let _sectionNextId = 1;
 
 /** Predefined section types with default colors */
 export const SECTION_TYPES = [
-  { type: 'INTRO',    label: 'Intro',    color: '#fde047' }, // Light Yellow
-  { type: 'VERSO',    label: 'Verso',    color: '#fb923c' }, // Orange
-  { type: 'PRECORO',  label: 'Precoro',  color: '#f87171' }, // Coral / Soft Red
-  { type: 'CORO',     label: 'Coro',     color: '#fbba16' }, // Main Gold
-  { type: 'PUENTE',   label: 'Puente',   color: '#c084fc' }, // Soft Purple
-  { type: 'OUTRO',    label: 'Outro',    color: '#94a3b8' }, // Slate
-  { type: 'ADLIB',    label: 'Ad-lib',   color: '#34d399' }, // Soft Green
-  { type: 'CUSTOM',   label: 'Custom',   color: '#fbba16' }, // Gold
+  { type: 'INTRO',    label: 'Intro',    color: '#64748b' }, // Slate
+  { type: 'VERSO',    label: 'Verso',    color: '#10b981' }, // Emerald
+  { type: 'PRECORO',  label: 'Precoro',  color: '#f59e0b' }, // Amber
+  { type: 'CORO',     label: 'Coro',     color: '#f43f5e' }, // Rose
+  { type: 'PUENTE',   label: 'Puente',   color: '#8b5cf6' }, // Violet
+  { type: 'OUTRO',    label: 'Outro',    color: '#475569' }, // Darker Slate
+  { type: 'ADLIB',    label: 'Ad-lib',   color: '#06b6d4' }, // Cyan
+  { type: 'CUSTOM',   label: 'Custom',   color: '#eab308' }, // Yellow
 ];
 
 export class SectionManager {
@@ -52,13 +52,20 @@ export class SectionManager {
   add(type, startTime, endTime, customName = '') {
     const typeInfo = SectionManager.getTypeInfo(type);
     const id = _sectionNextId++;
+    
+    let color = typeInfo.color;
+    if (type === 'CUSTOM') {
+      const customColors = ['#f43f5e', '#8b5cf6', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#6366f1', '#14b8a6', '#f97316'];
+      color = customColors[Math.floor(Math.random() * customColors.length)];
+    }
+
     const section = {
       id,
       type,
       name: customName || typeInfo.label,
       startTime,
       endTime,
-      color: typeInfo.color,
+      color,
     };
     this.sections.push(section);
     this._sort();
@@ -101,7 +108,7 @@ export class SectionManager {
    */
   getAtTime(timeMs) {
     return this.sections.find(
-      s => timeMs >= s.startTime && timeMs <= s.endTime
+      s => timeMs >= s.startTime && timeMs < s.endTime
     ) || null;
   }
 
